@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.boot.loader.jar;
 
 import java.io.File;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.SoftReference;
@@ -24,11 +25,18 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
+import java.security.Permission;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Supplier;
-import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 
 import org.springframework.boot.loader.data.RandomAccessData;
@@ -48,7 +56,7 @@ import org.springframework.boot.loader.data.RandomAccessDataFile;
  * @author Andy Wilkinson
  * @since 1.0.0
  */
-public class JarFile extends java.util.jar.JarFile {
+public class JarFile extends AbstractJarFile implements Iterable<java.util.jar.JarEntry> {
 
 	private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
 
@@ -59,6 +67,8 @@ public class JarFile extends java.util.jar.JarFile {
 	private static final AsciiBytes META_INF = new AsciiBytes("META-INF/");
 
 	private static final AsciiBytes SIGNATURE_FILE_EXTENSION = new AsciiBytes(".SF");
+
+	private static final String READ_ACTION = "read";
 
 	private final RandomAccessDataFile rootFile;
 
@@ -81,6 +91,12 @@ public class JarFile extends java.util.jar.JarFile {
 	private boolean signed;
 
 	private String comment;
+
+	private volatile boolean closed;
+
+	private volatile JarFileWrapper wrapper;
+
+	private final List<JarFile> nestedJars = Collections.synchronizedList(new ArrayList<>());
 
 	/**
 	 * Create a new {@link JarFile} backed by the specified file.
@@ -127,7 +143,11 @@ public class JarFile extends java.util.jar.JarFile {
 			this.data = parser.parse(data, filter == null);
 		}
 		catch (RuntimeException ex) {
-			close();
+			try {
+				close();
+			}
+			catch (IOException ioex) {
+			}
 			throw ex;
 		}
 		this.manifestSupplier = (manifestSupplier != null) ? manifestSupplier : () -> {
@@ -152,7 +172,7 @@ public class JarFile extends java.util.jar.JarFile {
 			}
 
 			@Override
-			public void visitFileHeader(CentralDirectoryFileHeader fileHeader, int dataOffset) {
+			public void visitFileHeader(CentralDirectoryFileHeader fileHeader, long dataOffset) {
 				AsciiBytes name = fileHeader.getName();
 				if (name.startsWith(META_INF) && name.endsWith(SIGNATURE_FILE_EXTENSION)) {
 					JarFile.this.signed = true;
@@ -164,6 +184,25 @@ public class JarFile extends java.util.jar.JarFile {
 			}
 
 		};
+	}
+
+	JarFileWrapper getWrapper() throws IOException {
+		JarFileWrapper wrapper = this.wrapper;
+		if (wrapper == null) {
+			synchronized (this) {
+				if (this.wrapper != null) {
+					return this.wrapper;
+				}
+				wrapper = new JarFileWrapper(this);
+				this.wrapper = wrapper;
+			}
+		}
+		return wrapper;
+	}
+
+	@Override
+	Permission getPermission() {
+		return new FilePermission(this.rootFile.getFile().getPath(), READ_ACTION);
 	}
 
 	protected final RandomAccessDataFile getRootJarFile() {
@@ -191,20 +230,25 @@ public class JarFile extends java.util.jar.JarFile {
 
 	@Override
 	public Enumeration<java.util.jar.JarEntry> entries() {
-		final Iterator<JarEntry> iterator = this.entries.iterator();
-		return new Enumeration<java.util.jar.JarEntry>() {
+		return new JarEntryEnumeration(this.entries.iterator());
+	}
 
-			@Override
-			public boolean hasMoreElements() {
-				return iterator.hasNext();
-			}
+	@Override
+	public Stream<java.util.jar.JarEntry> stream() {
+		Spliterator<java.util.jar.JarEntry> spliterator = Spliterators.spliterator(iterator(), size(),
+				Spliterator.ORDERED | Spliterator.DISTINCT | Spliterator.IMMUTABLE | Spliterator.NONNULL);
+		return StreamSupport.stream(spliterator, false);
+	}
 
-			@Override
-			public java.util.jar.JarEntry nextElement() {
-				return iterator.next();
-			}
-
-		};
+	/**
+	 * Return an iterator for the contained entries.
+	 * @since 2.3.0
+	 * @see java.lang.Iterable#iterator()
+	 */
+	@Override
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public Iterator<java.util.jar.JarEntry> iterator() {
+		return (Iterator) this.entries.iterator(this::ensureOpen);
 	}
 
 	public JarEntry getJarEntry(CharSequence name) {
@@ -222,13 +266,20 @@ public class JarFile extends java.util.jar.JarFile {
 
 	@Override
 	public ZipEntry getEntry(String name) {
+		ensureOpen();
 		return this.entries.getEntry(name);
 	}
 
 	@Override
+	InputStream getInputStream() throws IOException {
+		return this.data.getInputStream();
+	}
+
+	@Override
 	public synchronized InputStream getInputStream(ZipEntry entry) throws IOException {
-		if (entry instanceof JarEntry) {
-			return this.entries.getInputStream((JarEntry) entry);
+		ensureOpen();
+		if (entry instanceof JarEntry jarEntry) {
+			return this.entries.getInputStream(jarEntry);
 		}
 		return getInputStream((entry != null) ? entry.getName() : null);
 	}
@@ -289,26 +340,52 @@ public class JarFile extends java.util.jar.JarFile {
 							+ "mechanism used to create your executable jar file");
 		}
 		RandomAccessData entryData = this.entries.getEntryData(entry.getName());
-		return new JarFile(this.rootFile, this.pathFromRoot + "!/" + entry.getName(), entryData,
+		JarFile nestedJar = new JarFile(this.rootFile, this.pathFromRoot + "!/" + entry.getName(), entryData,
 				JarFileType.NESTED_JAR);
+		this.nestedJars.add(nestedJar);
+		return nestedJar;
 	}
 
 	@Override
 	public String getComment() {
+		ensureOpen();
 		return this.comment;
 	}
 
 	@Override
 	public int size() {
+		ensureOpen();
 		return this.entries.getSize();
 	}
 
 	@Override
 	public void close() throws IOException {
-		super.close();
-		if (this.type == JarFileType.DIRECT) {
-			this.rootFile.close();
+		if (this.closed) {
+			return;
 		}
+		synchronized (this) {
+			super.close();
+			if (this.type == JarFileType.DIRECT) {
+				this.rootFile.close();
+			}
+			if (this.wrapper != null) {
+				this.wrapper.close();
+			}
+			for (JarFile nestedJar : this.nestedJars) {
+				nestedJar.close();
+			}
+			this.closed = true;
+		}
+	}
+
+	private void ensureOpen() {
+		if (this.closed) {
+			throw new IllegalStateException("zip file closed");
+		}
+	}
+
+	boolean isClosed() {
+		return this.closed;
 	}
 
 	String getUrlString() throws MalformedURLException {
@@ -318,18 +395,12 @@ public class JarFile extends java.util.jar.JarFile {
 		return this.urlString;
 	}
 
-	/**
-	 * Return a URL that can be used to access this JAR file. NOTE: the specified URL
-	 * cannot be serialized and or cloned.
-	 * @return the URL
-	 * @throws MalformedURLException if the URL is malformed
-	 */
+	@Override
 	public URL getUrl() throws MalformedURLException {
 		if (this.url == null) {
-			Handler handler = new Handler(this);
 			String file = this.rootFile.getFile().toURI() + this.pathFromRoot + "!/";
 			file = file.replace("file:////", "file://"); // Fix UNC paths
-			this.url = new URL("jar", "", -1, file, handler);
+			this.url = new URL("jar", "", -1, file, new Handler(this));
 		}
 		return this.url;
 	}
@@ -348,30 +419,12 @@ public class JarFile extends java.util.jar.JarFile {
 		return this.signed;
 	}
 
-	void setupEntryCertificates(JarEntry entry) {
-		// Fallback to JarInputStream to obtain certificates, not fast but hopefully not
-		// happening that often.
+	JarEntryCertification getCertification(JarEntry entry) {
 		try {
-			try (JarInputStream inputStream = new JarInputStream(getData().getInputStream())) {
-				java.util.jar.JarEntry certEntry = inputStream.getNextJarEntry();
-				while (certEntry != null) {
-					inputStream.closeEntry();
-					if (entry.getName().equals(certEntry.getName())) {
-						setCertificates(entry, certEntry);
-					}
-					setCertificates(getJarEntry(certEntry.getName()), certEntry);
-					certEntry = inputStream.getNextJarEntry();
-				}
-			}
+			return this.entries.getCertification(entry);
 		}
 		catch (IOException ex) {
 			throw new IllegalStateException(ex);
-		}
-	}
-
-	private void setCertificates(JarEntry entry, java.util.jar.JarEntry certEntry) {
-		if (entry != null) {
-			entry.setCertificates(certEntry);
 		}
 	}
 
@@ -383,6 +436,7 @@ public class JarFile extends java.util.jar.JarFile {
 		return this.pathFromRoot;
 	}
 
+	@Override
 	JarFileType getType() {
 		return this.type;
 	}
@@ -392,9 +446,10 @@ public class JarFile extends java.util.jar.JarFile {
 	 * {@link URLStreamHandler} will be located to deal with jar URLs.
 	 */
 	public static void registerUrlProtocolHandler() {
+		Handler.captureJarContextUrl();
 		String handlers = System.getProperty(PROTOCOL_HANDLER, "");
 		System.setProperty(PROTOCOL_HANDLER,
-				("".equals(handlers) ? HANDLERS_PACKAGE : handlers + "|" + HANDLERS_PACKAGE));
+				((handlers == null || handlers.isEmpty()) ? HANDLERS_PACKAGE : handlers + "|" + HANDLERS_PACKAGE));
 		resetCachedUrlHandlers();
 	}
 
@@ -413,11 +468,25 @@ public class JarFile extends java.util.jar.JarFile {
 	}
 
 	/**
-	 * The type of a {@link JarFile}.
+	 * An {@link Enumeration} on {@linkplain java.util.jar.JarEntry jar entries}.
 	 */
-	enum JarFileType {
+	private static class JarEntryEnumeration implements Enumeration<java.util.jar.JarEntry> {
 
-		DIRECT, NESTED_DIRECTORY, NESTED_JAR
+		private final Iterator<JarEntry> iterator;
+
+		JarEntryEnumeration(Iterator<JarEntry> iterator) {
+			this.iterator = iterator;
+		}
+
+		@Override
+		public boolean hasMoreElements() {
+			return this.iterator.hasNext();
+		}
+
+		@Override
+		public java.util.jar.JarEntry nextElement() {
+			return this.iterator.next();
+		}
 
 	}
 
