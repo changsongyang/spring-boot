@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,18 +54,6 @@ public class ReactiveHealthEndpointWebExtension
 	 * Create a new {@link ReactiveHealthEndpointWebExtension} instance.
 	 * @param registry the health contributor registry
 	 * @param groups the health endpoint groups
-	 * @deprecated since 2.6.9 for removal in 3.0.0 in favor of
-	 * {@link #ReactiveHealthEndpointWebExtension(ReactiveHealthContributorRegistry, HealthEndpointGroups, Duration)}
-	 */
-	@Deprecated
-	public ReactiveHealthEndpointWebExtension(ReactiveHealthContributorRegistry registry, HealthEndpointGroups groups) {
-		super(registry, groups, null);
-	}
-
-	/**
-	 * Create a new {@link ReactiveHealthEndpointWebExtension} instance.
-	 * @param registry the health contributor registry
-	 * @param groups the health endpoint groups
 	 * @param slowIndicatorLoggingThreshold duration after which slow health indicator
 	 * logging should occur
 	 * @since 2.6.9
@@ -113,9 +101,11 @@ public class ReactiveHealthEndpointWebExtension
 	protected Mono<? extends HealthComponent> aggregateContributions(ApiVersion apiVersion,
 			Map<String, Mono<? extends HealthComponent>> contributions, StatusAggregator statusAggregator,
 			boolean showComponents, Set<String> groupNames) {
-		return Flux.fromIterable(contributions.entrySet()).flatMap(NamedHealthComponent::create)
-				.collectMap(NamedHealthComponent::getName, NamedHealthComponent::getHealth).map((components) -> this
-						.getCompositeHealth(apiVersion, components, statusAggregator, showComponents, groupNames));
+		return Flux.fromIterable(contributions.entrySet())
+			.flatMap(NamedHealthComponent::create)
+			.collectMap(NamedHealthComponent::getName, NamedHealthComponent::getHealth)
+			.map((components) -> this.getCompositeHealth(apiVersion, components, statusAggregator, showComponents,
+					groupNames));
 	}
 
 	/**

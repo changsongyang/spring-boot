@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
 import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport.ConditionAndOutcome;
@@ -42,7 +41,7 @@ import org.springframework.util.StringUtils;
  */
 public class ConditionEvaluationReportMessage {
 
-	private StringBuilder message;
+	private final StringBuilder message;
 
 	public ConditionEvaluationReportMessage(ConditionEvaluationReport report) {
 		this(report, "CONDITIONS EVALUATION REPORT");
@@ -71,8 +70,10 @@ public class ConditionEvaluationReportMessage {
 	private void logPositiveMatches(StringBuilder message, Map<String, ConditionAndOutcomes> shortOutcomes) {
 		message.append(String.format("Positive matches:%n"));
 		message.append(String.format("-----------------%n"));
-		List<Entry<String, ConditionAndOutcomes>> matched = shortOutcomes.entrySet().stream()
-				.filter((entry) -> entry.getValue().isFullMatch()).collect(Collectors.toList());
+		List<Entry<String, ConditionAndOutcomes>> matched = shortOutcomes.entrySet()
+			.stream()
+			.filter((entry) -> entry.getValue().isFullMatch())
+			.toList();
 		if (matched.isEmpty()) {
 			message.append(String.format("%n    None%n"));
 		}
@@ -85,8 +86,10 @@ public class ConditionEvaluationReportMessage {
 	private void logNegativeMatches(StringBuilder message, Map<String, ConditionAndOutcomes> shortOutcomes) {
 		message.append(String.format("Negative matches:%n"));
 		message.append(String.format("-----------------%n"));
-		List<Entry<String, ConditionAndOutcomes>> nonMatched = shortOutcomes.entrySet().stream()
-				.filter((entry) -> !entry.getValue().isFullMatch()).collect(Collectors.toList());
+		List<Entry<String, ConditionAndOutcomes>> nonMatched = shortOutcomes.entrySet()
+			.stream()
+			.filter((entry) -> !entry.getValue().isFullMatch())
+			.toList();
 		if (nonMatched.isEmpty()) {
 			message.append(String.format("%n    None%n"));
 		}
@@ -131,8 +134,8 @@ public class ConditionEvaluationReportMessage {
 		for (String shortName : shortNames) {
 			List<String> fullyQualifiedNames = map.get(shortName);
 			if (fullyQualifiedNames.size() > 1) {
-				fullyQualifiedNames.forEach(
-						(fullyQualifiedName) -> result.put(fullyQualifiedName, outcomes.get(fullyQualifiedName)));
+				fullyQualifiedNames
+					.forEach((fullyQualifiedName) -> result.put(fullyQualifiedName, outcomes.get(fullyQualifiedName)));
 			}
 			else {
 				result.put(shortName, outcomes.get(fullyQualifiedNames.get(0)));
@@ -143,8 +146,8 @@ public class ConditionEvaluationReportMessage {
 
 	private MultiValueMap<String, String> mapToFullyQualifiedNames(Set<String> keySet) {
 		LinkedMultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-		keySet.forEach(
-				(fullyQualifiedName) -> map.add(ClassUtils.getShortName(fullyQualifiedName), fullyQualifiedName));
+		keySet
+			.forEach((fullyQualifiedName) -> map.add(ClassUtils.getShortName(fullyQualifiedName), fullyQualifiedName));
 		return map;
 	}
 

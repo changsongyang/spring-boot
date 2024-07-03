@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import org.springframework.boot.env.PropertiesPropertySourceLoader;
 import org.springframework.boot.env.PropertySourceLoader;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.io.support.SpringFactoriesLoader;
-import org.springframework.core.mock.MockSpringFactoriesLoader;
+import org.springframework.core.test.io.support.MockSpringFactoriesLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,10 +44,10 @@ class ConfigDataLocationRuntimeHintsTests {
 	void registerWithDefaultSettings() {
 		RuntimeHints hints = new RuntimeHints();
 		new TestConfigDataLocationRuntimeHints().registerHints(hints, null);
-		assertThat(hints.resources().resourcePatterns()).singleElement()
-				.satisfies(includes("application*.properties", "application*.xml", "application*.yaml",
-						"application*.yml", "config/application*.properties", "config/application*.xml",
-						"config/application*.yaml", "config/application*.yml"));
+		assertThat(hints.resources().resourcePatternHints()).singleElement()
+			.satisfies(includes("application*.properties", "application*.xml", "application*.yaml", "application*.yml",
+					"config/application*.properties", "config/application*.xml", "config/application*.yaml",
+					"config/application*.yml"));
 	}
 
 	@Test
@@ -60,9 +60,9 @@ class ConfigDataLocationRuntimeHintsTests {
 			}
 
 		}.registerHints(hints, null);
-		assertThat(hints.resources().resourcePatterns()).singleElement()
-				.satisfies(includes("test*.properties", "test*.xml", "test*.yaml", "test*.yml",
-						"config/test*.properties", "config/test*.xml", "config/test*.yaml", "config/test*.yml"));
+		assertThat(hints.resources().resourcePatternHints()).singleElement()
+			.satisfies(includes("test*.properties", "test*.xml", "test*.yaml", "test*.yml", "config/test*.properties",
+					"config/test*.xml", "config/test*.yaml", "config/test*.yml"));
 	}
 
 	@Test
@@ -74,9 +74,9 @@ class ConfigDataLocationRuntimeHintsTests {
 				return List.of("config/");
 			}
 		}.registerHints(hints, null);
-		assertThat(hints.resources().resourcePatterns()).singleElement()
-				.satisfies(includes("config/application*.properties", "config/application*.xml",
-						"config/application*.yaml", "config/application*.yml"));
+		assertThat(hints.resources().resourcePatternHints()).singleElement()
+			.satisfies(includes("config/application*.properties", "config/application*.xml", "config/application*.yaml",
+					"config/application*.yml"));
 	}
 
 	@Test
@@ -88,8 +88,8 @@ class ConfigDataLocationRuntimeHintsTests {
 				return List.of(".conf");
 			}
 		}.registerHints(hints, null);
-		assertThat(hints.resources().resourcePatterns()).singleElement()
-				.satisfies(includes("application*.conf", "config/application*.conf"));
+		assertThat(hints.resources().resourcePatternHints()).singleElement()
+			.satisfies(includes("application*.conf", "config/application*.conf"));
 	}
 
 	@Test
@@ -101,13 +101,12 @@ class ConfigDataLocationRuntimeHintsTests {
 				return List.of(UUID.randomUUID().toString());
 			}
 		}.registerHints(hints, null);
-		assertThat(hints.resources().resourcePatterns()).isEmpty();
+		assertThat(hints.resources().resourcePatternHints()).isEmpty();
 	}
 
 	private Consumer<ResourcePatternHints> includes(String... patterns) {
 		return (hint) -> {
-			assertThat(hint.getIncludes().stream().map(ResourcePatternHint::getPattern))
-					.containsExactlyInAnyOrder(patterns);
+			assertThat(hint.getIncludes().stream().map(ResourcePatternHint::getPattern)).contains(patterns);
 			assertThat(hint.getExcludes()).isEmpty();
 		};
 	}

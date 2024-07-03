@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.boot.context.properties.ConfigurationPropertiesBean.BindMethod;
+import org.springframework.boot.context.properties.bind.BindMethod;
 import org.springframework.boot.context.properties.scan.combined.c.CombinedConfiguration;
 import org.springframework.boot.context.properties.scan.combined.d.OtherCombinedConfiguration;
 import org.springframework.boot.context.properties.scan.valid.ConfigurationPropertiesScanConfiguration;
@@ -81,7 +81,7 @@ class ConfigurationPropertiesScanRegistrarTests {
 				beanFactory);
 		assertThat(beanFactory.containsBeanDefinition(
 				"foo-org.springframework.boot.context.properties.scan.valid.ConfigurationPropertiesScanConfiguration$FooProperties"))
-						.isFalse();
+			.isFalse();
 		BeanDefinition aDefinition = beanFactory.getBeanDefinition(
 				"a-org.springframework.boot.context.properties.scan.valid.a.AScanConfiguration$AProperties");
 		BeanDefinition bFirstDefinition = beanFactory.getBeanDefinition(
@@ -100,7 +100,7 @@ class ConfigurationPropertiesScanRegistrarTests {
 		DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
 		beanFactory.setAllowBeanDefinitionOverriding(false);
 		this.registrar.registerBeanDefinitions(getAnnotationMetadata(CombinedScanConfiguration.class), beanFactory);
-		assertThat(beanFactory.getBeanDefinitionCount()).isEqualTo(0);
+		assertThat(beanFactory.getBeanDefinitionCount()).isZero();
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class ConfigurationPropertiesScanRegistrarTests {
 		beanFactory.setAllowBeanDefinitionOverriding(false);
 		this.registrar.registerBeanDefinitions(getAnnotationMetadata(OtherCombinedScanConfiguration.class),
 				beanFactory);
-		assertThat(beanFactory.getBeanDefinitionCount()).isEqualTo(0);
+		assertThat(beanFactory.getBeanDefinitionCount()).isZero();
 	}
 
 	private Consumer<BeanDefinition> configurationPropertiesBeanDefinition(BindMethod bindMethod) {

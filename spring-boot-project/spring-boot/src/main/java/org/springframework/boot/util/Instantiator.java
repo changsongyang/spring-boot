@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
@@ -46,7 +45,8 @@ import org.springframework.util.ReflectionUtils;
 public class Instantiator<T> {
 
 	private static final Comparator<Constructor<?>> CONSTRUCTOR_COMPARATOR = Comparator
-			.<Constructor<?>>comparingInt(Constructor::getParameterCount).reversed();
+		.<Constructor<?>>comparingInt(Constructor::getParameterCount)
+		.reversed();
 
 	private static final FailureHandler throwingFailureHandler = (type, implementationName, failure) -> {
 		throw new IllegalArgumentException("Unable to instantiate " + implementationName + " [" + type.getName() + "]",
@@ -137,9 +137,7 @@ public class Instantiator<T> {
 	}
 
 	private List<T> instantiate(Stream<TypeSupplier> typeSuppliers) {
-		List<T> instances = typeSuppliers.map(this::instantiate).collect(Collectors.toList());
-		AnnotationAwareOrderComparator.sort(instances);
-		return Collections.unmodifiableList(instances);
+		return typeSuppliers.map(this::instantiate).sorted(AnnotationAwareOrderComparator.INSTANCE).toList();
 	}
 
 	private T instantiate(TypeSupplier typeSupplier) {

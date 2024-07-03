@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeReference;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 import org.springframework.boot.SpringBootVersion;
+import org.springframework.boot.actuate.startup.StartupEndpoint.StartupDescriptor;
 import org.springframework.boot.actuate.startup.StartupEndpoint.StartupEndpointRuntimeHints;
-import org.springframework.boot.actuate.startup.StartupEndpoint.StartupResponse;
 import org.springframework.boot.context.metrics.buffering.BufferingApplicationStartup;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -49,10 +49,10 @@ class StartupEndpointTests {
 	void startupEventsAreFound() {
 		BufferingApplicationStartup applicationStartup = new BufferingApplicationStartup(256);
 		testStartupEndpoint(applicationStartup, (startupEndpoint) -> {
-			StartupResponse startup = startupEndpoint.startup();
+			StartupDescriptor startup = startupEndpoint.startup();
 			assertThat(startup.getSpringBootVersion()).isEqualTo(SpringBootVersion.getVersion());
 			assertThat(startup.getTimeline().getStartTime())
-					.isEqualTo(applicationStartup.getBufferedTimeline().getStartTime());
+				.isEqualTo(applicationStartup.getBufferedTimeline().getStartTime());
 		});
 	}
 
@@ -60,7 +60,7 @@ class StartupEndpointTests {
 	void bufferWithGetIsNotDrained() {
 		BufferingApplicationStartup applicationStartup = new BufferingApplicationStartup(256);
 		testStartupEndpoint(applicationStartup, (startupEndpoint) -> {
-			StartupResponse startup = startupEndpoint.startupSnapshot();
+			StartupDescriptor startup = startupEndpoint.startupSnapshot();
 			assertThat(startup.getTimeline().getEvents()).isNotEmpty();
 			assertThat(applicationStartup.getBufferedTimeline().getEvents()).isNotEmpty();
 		});
@@ -70,7 +70,7 @@ class StartupEndpointTests {
 	void bufferWithPostIsDrained() {
 		BufferingApplicationStartup applicationStartup = new BufferingApplicationStartup(256);
 		testStartupEndpoint(applicationStartup, (startupEndpoint) -> {
-			StartupResponse startup = startupEndpoint.startup();
+			StartupDescriptor startup = startupEndpoint.startup();
 			assertThat(startup.getTimeline().getEvents()).isNotEmpty();
 			assertThat(applicationStartup.getBufferedTimeline().getEvents()).isEmpty();
 		});
@@ -84,15 +84,16 @@ class StartupEndpointTests {
 				TypeReference.of("org.springframework.boot.context.metrics.buffering.BufferedStartupStep$DefaultTag"),
 				TypeReference.of("org.springframework.core.metrics.jfr.FlightRecorderStartupStep$FlightRecorderTag"));
 		for (TypeReference bindingType : bindingTypes) {
-			assertThat(RuntimeHintsPredicates.reflection().onType(bindingType)
-					.withMemberCategories(MemberCategory.INVOKE_PUBLIC_METHODS)).accepts(runtimeHints);
+			assertThat(RuntimeHintsPredicates.reflection()
+				.onType(bindingType)
+				.withMemberCategories(MemberCategory.INVOKE_PUBLIC_METHODS)).accepts(runtimeHints);
 		}
 	}
 
 	private void testStartupEndpoint(ApplicationStartup applicationStartup, Consumer<StartupEndpoint> startupEndpoint) {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-				.withInitializer((context) -> context.setApplicationStartup(applicationStartup))
-				.withUserConfiguration(EndpointConfiguration.class);
+			.withInitializer((context) -> context.setApplicationStartup(applicationStartup))
+			.withUserConfiguration(EndpointConfiguration.class);
 		contextRunner.run((context) -> {
 			assertThat(context).hasSingleBean(StartupEndpoint.class);
 			startupEndpoint.accept(context.getBean(StartupEndpoint.class));

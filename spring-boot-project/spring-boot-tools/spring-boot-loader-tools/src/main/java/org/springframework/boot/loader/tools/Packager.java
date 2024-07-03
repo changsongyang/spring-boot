@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,19 @@
 
 package org.springframework.boot.loader.tools;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -31,7 +36,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
 
 import org.apache.commons.compress.archivers.jar.JarArchiveEntry;
 
@@ -67,6 +72,10 @@ public abstract class Packager {
 
 	private static final String BOOT_LAYERS_INDEX_ATTRIBUTE = "Spring-Boot-Layers-Index";
 
+	private static final String SBOM_LOCATION_ATTRIBUTE = "Sbom-Location";
+
+	private static final String SBOM_FORMAT_ATTRIBUTE = "Sbom-Format";
+
 	private static final byte[] ZIP_FILE_HEADER = new byte[] { 'P', 'K', 3, 4 };
 
 	private static final long FIND_WARNING_TIMEOUT = TimeUnit.SECONDS.toMillis(10);
@@ -82,6 +91,8 @@ public abstract class Packager {
 	private File backupFile;
 
 	private Layout layout;
+
+	private LoaderImplementation loaderImplementation;
 
 	private LayoutFactory layoutFactory;
 
@@ -128,6 +139,14 @@ public abstract class Packager {
 	public void setLayout(Layout layout) {
 		Assert.notNull(layout, "Layout must not be null");
 		this.layout = layout;
+	}
+
+	/**
+	 * Sets the loader implementation to use.
+	 * @param loaderImplementation the loaderImplementation to set
+	 */
+	public void setLoaderImplementation(LoaderImplementation loaderImplementation) {
+		this.loaderImplementation = loaderImplementation;
 	}
 
 	/**
@@ -197,10 +216,12 @@ public abstract class Packager {
 		writeLoaderClasses(writer);
 		writer.writeEntries(sourceJar, getEntityTransformer(), libraries.getUnpackHandler(),
 				libraries.getLibraryLookup());
-		libraries.write(writer);
+		Map<String, Library> writtenLibraries = libraries.write(writer);
+		writeNativeImageArgFile(writer, sourceJar, writtenLibraries);
 		if (isLayered()) {
 			writeLayerIndex(writer);
 		}
+		writeSignatureFileIfNecessary(writtenLibraries, writer);
 	}
 
 	private void writeLoaderClasses(AbstractJarWriter writer) throws IOException {
@@ -209,8 +230,33 @@ public abstract class Packager {
 			customLoaderLayout.writeLoadedClasses(writer);
 		}
 		else if (layout.isExecutable()) {
-			writer.writeLoaderClasses();
+			writer.writeLoaderClasses(this.loaderImplementation);
 		}
+	}
+
+	private void writeNativeImageArgFile(AbstractJarWriter writer, JarFile sourceJar,
+			Map<String, Library> writtenLibraries) throws IOException {
+		Set<String> excludes = new LinkedHashSet<>();
+		for (Map.Entry<String, Library> entry : writtenLibraries.entrySet()) {
+			LibraryCoordinates coordinates = entry.getValue().getCoordinates();
+			ZipEntry zipEntry = (coordinates != null)
+					? sourceJar.getEntry(ReachabilityMetadataProperties.getLocation(coordinates)) : null;
+			if (zipEntry != null) {
+				try (InputStream inputStream = sourceJar.getInputStream(zipEntry)) {
+					ReachabilityMetadataProperties properties = ReachabilityMetadataProperties
+						.fromInputStream(inputStream);
+					if (properties.isOverridden()) {
+						excludes.add(entry.getKey());
+					}
+				}
+			}
+		}
+		NativeImageArgFile argFile = new NativeImageArgFile(excludes);
+		argFile.writeIfNecessary((lines) -> {
+			String contents = String.join("\n", lines) + "\n";
+			writer.writeEntry(NativeImageArgFile.LOCATION,
+					new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8)));
+		});
 	}
 
 	private void writeLayerIndex(AbstractJarWriter writer) throws IOException {
@@ -220,6 +266,10 @@ public abstract class Packager {
 			this.layersIndex.add(layer, name);
 			writer.writeEntry(name, this.layersIndex::writeTo);
 		}
+	}
+
+	protected void writeSignatureFileIfNecessary(Map<String, Library> writtenLibraries, AbstractJarWriter writer)
+			throws IOException {
 	}
 
 	private EntryTransformer getEntityTransformer() {
@@ -253,6 +303,7 @@ public abstract class Packager {
 		Manifest manifest = createInitialManifest(source);
 		addMainAndStartAttributes(source, manifest);
 		addBootAttributes(manifest.getMainAttributes());
+		addSbomAttributes(source, manifest.getMainAttributes());
 		return manifest;
 	}
 
@@ -362,6 +413,21 @@ public abstract class Packager {
 		}
 	}
 
+	private void addSbomAttributes(JarFile source, Attributes attributes) {
+		JarEntry sbomEntry = source.stream().filter(this::isCycloneDxBom).findAny().orElse(null);
+		if (sbomEntry != null) {
+			attributes.putValue(SBOM_LOCATION_ATTRIBUTE, sbomEntry.getName());
+			attributes.putValue(SBOM_FORMAT_ATTRIBUTE, "CycloneDX");
+		}
+	}
+
+	private boolean isCycloneDxBom(JarEntry entry) {
+		if (!entry.getName().startsWith("META-INF/sbom/")) {
+			return false;
+		}
+		return entry.getName().endsWith(".cdx.json") || entry.getName().endsWith("/bom.json");
+	}
+
 	private void putIfHasLength(Attributes attributes, String name, String value) {
 		if (StringUtils.hasLength(value)) {
 			attributes.putValue(name, value);
@@ -465,8 +531,8 @@ public abstract class Packager {
 					addLibrary(library);
 				}
 			});
-			if (isLayered() && Packager.this.includeRelevantJarModeJars) {
-				addLibrary(JarModeLibrary.LAYER_TOOLS);
+			if (Packager.this.includeRelevantJarModeJars) {
+				addLibrary(JarModeLibrary.TOOLS);
 			}
 			this.unpackHandler = new PackagedLibrariesUnpackHandler();
 			this.libraryLookup = this::lookup;
@@ -493,24 +559,25 @@ public abstract class Packager {
 			return this.libraryLookup;
 		}
 
-		void write(AbstractJarWriter writer) throws IOException {
-			List<String> writtenPaths = new ArrayList<>();
+		Map<String, Library> write(AbstractJarWriter writer) throws IOException {
+			Map<String, Library> writtenLibraries = new LinkedHashMap<>();
 			for (Entry<String, Library> entry : this.libraries.entrySet()) {
 				String path = entry.getKey();
 				Library library = entry.getValue();
 				if (library.isIncluded()) {
 					String location = path.substring(0, path.lastIndexOf('/') + 1);
 					writer.writeNestedLibrary(location, library);
-					writtenPaths.add(path);
+					writtenLibraries.put(path, library);
 				}
 			}
-			writeClasspathIndexIfNecessary(writtenPaths, getLayout(), writer);
+			writeClasspathIndexIfNecessary(writtenLibraries.keySet(), getLayout(), writer);
+			return writtenLibraries;
 		}
 
-		private void writeClasspathIndexIfNecessary(List<String> paths, Layout layout, AbstractJarWriter writer)
+		private void writeClasspathIndexIfNecessary(Collection<String> paths, Layout layout, AbstractJarWriter writer)
 				throws IOException {
 			if (layout.getClasspathIndexFileLocation() != null) {
-				List<String> names = paths.stream().map((path) -> "- \"" + path + "\"").collect(Collectors.toList());
+				List<String> names = paths.stream().map((path) -> "- \"" + path + "\"").toList();
 				writer.writeIndexFile(layout.getClasspathIndexFileLocation(), names);
 			}
 		}
@@ -519,7 +586,7 @@ public abstract class Packager {
 		 * An {@link UnpackHandler} that determines that an entry needs to be unpacked if
 		 * a library that requires unpacking has a matching entry name.
 		 */
-		private class PackagedLibrariesUnpackHandler implements UnpackHandler {
+		private final class PackagedLibrariesUnpackHandler implements UnpackHandler {
 
 			@Override
 			public boolean requiresUnpack(String name) {

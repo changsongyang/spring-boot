@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.boot.actuate.autoconfigure.endpoint.web;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -59,7 +58,7 @@ class WebEndpointAutoConfigurationTests {
 			WebEndpointAutoConfiguration.class);
 
 	private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
-			.withConfiguration(CONFIGURATIONS);
+		.withConfiguration(CONFIGURATIONS);
 
 	@Test
 	void webApplicationConfiguresEndpointMediaTypes() {
@@ -72,31 +71,31 @@ class WebEndpointAutoConfigurationTests {
 	@Test
 	void webApplicationConfiguresPathMapper() {
 		this.contextRunner.withPropertyValues("management.endpoints.web.path-mapping.health=healthcheck")
-				.run((context) -> {
-					assertThat(context).hasSingleBean(PathMapper.class);
-					String pathMapping = context.getBean(PathMapper.class).getRootPath(EndpointId.of("health"));
-					assertThat(pathMapping).isEqualTo("healthcheck");
-				});
+			.run((context) -> {
+				assertThat(context).hasSingleBean(PathMapper.class);
+				String pathMapping = context.getBean(PathMapper.class).getRootPath(EndpointId.of("health"));
+				assertThat(pathMapping).isEqualTo("healthcheck");
+			});
 	}
 
 	@Test
 	void webApplicationSupportCustomPathMatcher() {
 		this.contextRunner
-				.withPropertyValues("management.endpoints.web.exposure.include=*",
-						"management.endpoints.web.path-mapping.testanotherone=foo")
-				.withUserConfiguration(TestPathMatcher.class, TestOneEndpoint.class, TestAnotherOneEndpoint.class,
-						TestTwoEndpoint.class)
-				.run((context) -> {
-					WebEndpointDiscoverer discoverer = context.getBean(WebEndpointDiscoverer.class);
-					Collection<ExposableWebEndpoint> endpoints = discoverer.getEndpoints();
-					ExposableWebEndpoint[] webEndpoints = endpoints.toArray(new ExposableWebEndpoint[0]);
-					List<String> paths = Arrays.stream(webEndpoints).map(PathMappedEndpoint::getRootPath)
-							.collect(Collectors.toList());
-					assertThat(paths).containsOnly("1/testone", "foo", "testtwo");
-				});
+			.withPropertyValues("management.endpoints.web.exposure.include=*",
+					"management.endpoints.web.path-mapping.testanotherone=foo")
+			.withUserConfiguration(TestPathMatcher.class, TestOneEndpoint.class, TestAnotherOneEndpoint.class,
+					TestTwoEndpoint.class)
+			.run((context) -> {
+				WebEndpointDiscoverer discoverer = context.getBean(WebEndpointDiscoverer.class);
+				Collection<ExposableWebEndpoint> endpoints = discoverer.getEndpoints();
+				ExposableWebEndpoint[] webEndpoints = endpoints.toArray(new ExposableWebEndpoint[0]);
+				List<String> paths = Arrays.stream(webEndpoints).map(PathMappedEndpoint::getRootPath).toList();
+				assertThat(paths).containsOnly("1/testone", "foo", "testtwo");
+			});
 	}
 
 	@Test
+	@SuppressWarnings("removal")
 	void webApplicationConfiguresEndpointDiscoverer() {
 		this.contextRunner.run((context) -> {
 			assertThat(context).hasSingleBean(ControllerEndpointDiscoverer.class);
@@ -106,20 +105,21 @@ class WebEndpointAutoConfigurationTests {
 
 	@Test
 	void webApplicationConfiguresExposeExcludePropertyEndpointFilter() {
-		this.contextRunner
-				.run((context) -> assertThat(context).getBeans(IncludeExcludeEndpointFilter.class).containsKeys(
-						"webExposeExcludePropertyEndpointFilter", "controllerExposeExcludePropertyEndpointFilter"));
+		this.contextRunner.run((context) -> assertThat(context).getBeans(IncludeExcludeEndpointFilter.class)
+			.containsKeys("webExposeExcludePropertyEndpointFilter", "controllerExposeExcludePropertyEndpointFilter"));
 	}
 
 	@Test
+	@SuppressWarnings("removal")
 	void contextShouldConfigureServletEndpointDiscoverer() {
 		this.contextRunner.run((context) -> assertThat(context).hasSingleBean(ServletEndpointDiscoverer.class));
 	}
 
 	@Test
+	@SuppressWarnings("removal")
 	void contextWhenNotServletShouldNotConfigureServletEndpointDiscoverer() {
 		new ApplicationContextRunner().withConfiguration(CONFIGURATIONS)
-				.run((context) -> assertThat(context).doesNotHaveBean(ServletEndpointDiscoverer.class));
+			.run((context) -> assertThat(context).doesNotHaveBean(ServletEndpointDiscoverer.class));
 	}
 
 	@Component
@@ -128,7 +128,7 @@ class WebEndpointAutoConfigurationTests {
 		@Override
 		public String getRootPath(EndpointId endpointId) {
 			if (endpointId.toString().endsWith("one")) {
-				return "1/" + endpointId.toString();
+				return "1/" + endpointId;
 			}
 			return null;
 		}

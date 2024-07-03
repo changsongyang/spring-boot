@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,15 @@
 package org.springframework.boot.logging.logback;
 
 import java.io.IOException;
-import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.pattern.ClassicConverter;
+import ch.qos.logback.classic.pattern.SyslogStartConverter;
+import ch.qos.logback.core.pattern.Converter;
+import ch.qos.logback.core.rolling.helper.DateTokenConverter;
+import ch.qos.logback.core.rolling.helper.IntegerTokenConverter;
 import org.junit.jupiter.api.Test;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
@@ -34,8 +35,6 @@ import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.TypeHint;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.core.io.support.ResourcePatternResolver;
-import org.springframework.util.ClassUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,17 +53,35 @@ class LogbackRuntimeHintsTests {
 	}
 
 	@Test
-	void registersHintsForBuiltInLogbackConverters() throws Exception {
+	void registersHintsForBuiltInLogbackConverters() {
 		ReflectionHints reflection = registerHints();
 		assertThat(logbackConverters()).allSatisfy(registeredForPublicConstructorInvocation(reflection));
 	}
 
 	@Test
-	void registersHintsForSpringBootConverters() throws LinkageError {
+	void registersHintsForSpringBootConverters() throws IOException {
 		ReflectionHints reflection = registerHints();
-		assertThat(List.of(ColorConverter.class, ExtendedWhitespaceThrowableProxyConverter.class,
-				WhitespaceThrowableProxyConverter.class))
-						.allSatisfy(registeredForPublicConstructorInvocation(reflection));
+		assertThat(converterClasses()).allSatisfy(registeredForPublicConstructorInvocation(reflection));
+	}
+
+	@SuppressWarnings("unchecked")
+	private Stream<Class<Converter<?>>> converterClasses() throws IOException {
+		PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+		return Stream.of(resolver.getResources("classpath:org/springframework/boot/logging/logback/*.class"))
+			.filter(Resource::isFile)
+			.map(this::loadClass)
+			.filter(Converter.class::isAssignableFrom)
+			.map((type) -> (Class<Converter<?>>) type);
+	}
+
+	private Class<?> loadClass(Resource resource) {
+		try {
+			return getClass().getClassLoader()
+				.loadClass("org.springframework.boot.logging.logback." + resource.getFilename().replace(".class", ""));
+		}
+		catch (ClassNotFoundException ex) {
+			throw new RuntimeException(ex);
+		}
 	}
 
 	@Test
@@ -89,31 +106,8 @@ class LogbackRuntimeHintsTests {
 		};
 	}
 
-	private List<Class<?>> logbackConverters() throws IOException {
-		ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-		Resource[] converterResources = resolver
-				.getResources("classpath:ch/qos/logback/classic/pattern/*Converter.class");
-		return Stream.of(converterResources).map(this::className).map(this::load).filter(this::isConcreteConverter)
-				.collect(Collectors.toList());
-	}
-
-	private String className(Resource resource) {
-		String filename = resource.getFilename();
-		filename = filename.substring(0, filename.length() - ".class".length());
-		return "ch.qos.logback.classic.pattern." + filename;
-	}
-
-	private Class<?> load(String className) {
-		try {
-			return ClassUtils.forName(className, getClass().getClassLoader());
-		}
-		catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-
-	private boolean isConcreteConverter(Class<?> candidate) {
-		return ClassicConverter.class.isAssignableFrom(candidate) && !Modifier.isAbstract(candidate.getModifiers());
+	private List<Class<?>> logbackConverters() {
+		return List.of(DateTokenConverter.class, IntegerTokenConverter.class, SyslogStartConverter.class);
 	}
 
 }

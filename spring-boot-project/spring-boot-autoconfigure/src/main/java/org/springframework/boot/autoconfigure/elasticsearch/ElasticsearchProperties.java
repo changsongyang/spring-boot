@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,6 +58,11 @@ public class ElasticsearchProperties {
 	private Duration socketTimeout = Duration.ofSeconds(30);
 
 	/**
+	 * Whether to enable socket keep alive between client and Elasticsearch.
+	 */
+	private boolean socketKeepAlive = false;
+
+	/**
 	 * Prefix added to the path of every request sent to Elasticsearch.
 	 */
 	private String pathPrefix;
@@ -104,6 +109,14 @@ public class ElasticsearchProperties {
 		this.socketTimeout = socketTimeout;
 	}
 
+	public boolean isSocketKeepAlive() {
+		return this.socketKeepAlive;
+	}
+
+	public void setSocketKeepAlive(boolean socketKeepAlive) {
+		this.socketKeepAlive = socketKeepAlive;
+	}
+
 	public String getPathPrefix() {
 		return this.pathPrefix;
 	}
@@ -120,8 +133,14 @@ public class ElasticsearchProperties {
 
 		private final Sniffer sniffer = new Sniffer();
 
+		private final Ssl ssl = new Ssl();
+
 		public Sniffer getSniffer() {
 			return this.sniffer;
+		}
+
+		public Ssl getSsl() {
+			return this.ssl;
 		}
 
 		public static class Sniffer {
@@ -150,6 +169,23 @@ public class ElasticsearchProperties {
 
 			public void setDelayAfterFailure(Duration delayAfterFailure) {
 				this.delayAfterFailure = delayAfterFailure;
+			}
+
+		}
+
+		public static class Ssl {
+
+			/**
+			 * SSL bundle name.
+			 */
+			private String bundle;
+
+			public String getBundle() {
+				return this.bundle;
+			}
+
+			public void setBundle(String bundle) {
+				this.bundle = bundle;
 			}
 
 		}

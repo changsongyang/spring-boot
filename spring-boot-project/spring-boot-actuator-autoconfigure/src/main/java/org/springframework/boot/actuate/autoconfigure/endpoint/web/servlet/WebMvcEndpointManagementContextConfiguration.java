@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,14 @@
 package org.springframework.boot.actuate.autoconfigure.endpoint.web.servlet;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
 import org.springframework.boot.actuate.autoconfigure.endpoint.expose.EndpointExposure;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.CorsEndpointProperties;
@@ -28,7 +33,9 @@ import org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfi
 import org.springframework.boot.actuate.autoconfigure.web.server.ConditionalOnManagementPort;
 import org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType;
 import org.springframework.boot.actuate.endpoint.ExposableEndpoint;
+import org.springframework.boot.actuate.endpoint.OperationResponseBody;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.actuate.endpoint.jackson.EndpointObjectMapper;
 import org.springframework.boot.actuate.endpoint.web.EndpointLinksResolver;
 import org.springframework.boot.actuate.endpoint.web.EndpointMapping;
 import org.springframework.boot.actuate.endpoint.web.EndpointMediaTypes;
@@ -49,9 +56,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Role;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * {@link ManagementContextConfiguration @ManagementContextConfiguration} for Spring MVC
@@ -70,6 +82,7 @@ public class WebMvcEndpointManagementContextConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
+	@SuppressWarnings("removal")
 	public WebMvcEndpointHandlerMapping webEndpointServletHandlerMapping(WebEndpointsSupplier webEndpointsSupplier,
 			ServletEndpointsSupplier servletEndpointsSupplier, ControllerEndpointsSupplier controllerEndpointsSupplier,
 			EndpointMediaTypes endpointMediaTypes, CorsEndpointProperties corsProperties,
@@ -101,7 +114,10 @@ public class WebMvcEndpointManagementContextConfiguration {
 			WebEndpointsSupplier webEndpointsSupplier, HealthEndpointGroups groups) {
 		Collection<ExposableWebEndpoint> webEndpoints = webEndpointsSupplier.getEndpoints();
 		ExposableWebEndpoint health = webEndpoints.stream()
-				.filter((endpoint) -> endpoint.getEndpointId().equals(HealthEndpoint.ID)).findFirst().get();
+			.filter((endpoint) -> endpoint.getEndpointId().equals(HealthEndpoint.ID))
+			.findFirst()
+			.orElseThrow(
+					() -> new IllegalStateException("No endpoint with id '%s' found".formatted(HealthEndpoint.ID)));
 		return new AdditionalHealthEndpointPathsWebMvcHandlerMapping(health,
 				groups.getAllWithAdditionalPath(WebServerNamespace.MANAGEMENT));
 	}
@@ -114,6 +130,48 @@ public class WebMvcEndpointManagementContextConfiguration {
 		EndpointMapping endpointMapping = new EndpointMapping(webEndpointProperties.getBasePath());
 		return new ControllerEndpointHandlerMapping(endpointMapping, controllerEndpointsSupplier.getEndpoints(),
 				corsProperties.toCorsConfiguration());
+	}
+
+	@Bean
+	@ConditionalOnBean(EndpointObjectMapper.class)
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	static EndpointObjectMapperWebMvcConfigurer endpointObjectMapperWebMvcConfigurer(
+			EndpointObjectMapper endpointObjectMapper) {
+		return new EndpointObjectMapperWebMvcConfigurer(endpointObjectMapper);
+	}
+
+	/**
+	 * {@link WebMvcConfigurer} to apply {@link EndpointObjectMapper} for
+	 * {@link OperationResponseBody} to {@link MappingJackson2HttpMessageConverter}
+	 * instances.
+	 */
+	static class EndpointObjectMapperWebMvcConfigurer implements WebMvcConfigurer {
+
+		private static final List<MediaType> MEDIA_TYPES = Collections
+			.unmodifiableList(Arrays.asList(MediaType.APPLICATION_JSON, new MediaType("application", "*+json")));
+
+		private final EndpointObjectMapper endpointObjectMapper;
+
+		EndpointObjectMapperWebMvcConfigurer(EndpointObjectMapper endpointObjectMapper) {
+			this.endpointObjectMapper = endpointObjectMapper;
+		}
+
+		@Override
+		public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+			for (HttpMessageConverter<?> converter : converters) {
+				if (converter instanceof MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter) {
+					configure(mappingJackson2HttpMessageConverter);
+				}
+			}
+		}
+
+		private void configure(MappingJackson2HttpMessageConverter converter) {
+			converter.registerObjectMappersForType(OperationResponseBody.class, (associations) -> {
+				ObjectMapper objectMapper = this.endpointObjectMapper.get();
+				MEDIA_TYPES.forEach((mimeType) -> associations.put(mimeType, objectMapper));
+			});
+		}
+
 	}
 
 }

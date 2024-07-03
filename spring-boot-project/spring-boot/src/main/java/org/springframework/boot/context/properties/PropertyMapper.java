@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,7 +183,8 @@ public final class PropertyMapper {
 		}
 
 		/**
-		 * Return an adapted version of the source changed via the given adapter function.
+		 * Return an adapted version of the source changed through the given adapter
+		 * function.
 		 * @param <R> the resulting type
 		 * @param adapter the adapter to apply
 		 * @return a new adapted source instance
@@ -295,8 +296,8 @@ public final class PropertyMapper {
 		}
 
 		/**
-		 * Complete the mapping for any non-filtered value by apply the given function to
-		 * an existing instance and returning a new one. For filtered values, the
+		 * Complete the mapping for any non-filtered value by applying the given function
+		 * to an existing instance and returning a new one. For filtered values, the
 		 * {@code instance} parameter is returned unchanged. The method is designed to be
 		 * used with immutable objects.
 		 * @param <R> the result type

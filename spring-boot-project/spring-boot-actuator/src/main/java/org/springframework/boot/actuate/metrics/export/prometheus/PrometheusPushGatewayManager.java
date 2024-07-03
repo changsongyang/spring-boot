@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ public class PrometheusPushGatewayManager {
 
 	private final TaskScheduler scheduler;
 
-	private ScheduledFuture<?> scheduled;
+	private final ScheduledFuture<?> scheduled;
 
 	/**
 	 * Create a new {@link PrometheusPushGatewayManager} instance using a single threaded
@@ -141,7 +141,7 @@ public class PrometheusPushGatewayManager {
 		}
 		this.scheduled.cancel(false);
 		switch (shutdownOperation) {
-			case PUSH, POST -> post();
+			case POST -> post();
 			case PUT -> put();
 			case DELETE -> delete();
 		}
@@ -161,13 +161,6 @@ public class PrometheusPushGatewayManager {
 		 * Perform a POST before shutdown.
 		 */
 		POST,
-
-		/**
-		 * Perform a POST before shutdown.
-		 * @deprecated since 3.0.0 for removal in 3.2.0 in favor of {@link #POST}.
-		 */
-		@Deprecated
-		PUSH,
 
 		/**
 		 * Perform a PUT before shutdown.

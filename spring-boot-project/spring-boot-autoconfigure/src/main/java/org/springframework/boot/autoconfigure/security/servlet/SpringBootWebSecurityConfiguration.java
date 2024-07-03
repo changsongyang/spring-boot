@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 /**
  * {@link Configuration @Configuration} class securing servlet applications.
  *
@@ -42,10 +44,9 @@ class SpringBootWebSecurityConfiguration {
 	/**
 	 * The default configuration for web security. It relies on Spring Security's
 	 * content-negotiation strategy to determine what sort of authentication to use. If
-	 * the user specifies their own {@code WebSecurityConfigurerAdapter} or
-	 * {@link SecurityFilterChain} bean, this will back-off completely and the users
-	 * should specify all the bits that they want to configure as part of the custom
-	 * security configuration.
+	 * the user specifies their own {@link SecurityFilterChain} bean, this will back-off
+	 * completely and the users should specify all the bits that they want to configure as
+	 * part of the custom security configuration.
 	 */
 	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnDefaultWebSecurity
@@ -54,9 +55,9 @@ class SpringBootWebSecurityConfiguration {
 		@Bean
 		@Order(SecurityProperties.BASIC_AUTH_ORDER)
 		SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
-			http.authorizeRequests().anyRequest().authenticated();
-			http.formLogin();
-			http.httpBasic();
+			http.authorizeHttpRequests((requests) -> requests.anyRequest().authenticated());
+			http.formLogin(withDefaults());
+			http.httpBasic(withDefaults());
 			return http.build();
 		}
 

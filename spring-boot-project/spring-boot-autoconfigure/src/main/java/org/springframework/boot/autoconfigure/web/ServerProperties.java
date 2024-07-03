@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.springframework.boot.convert.DurationUnit;
 import org.springframework.boot.web.server.Compression;
 import org.springframework.boot.web.server.Cookie;
 import org.springframework.boot.web.server.Http2;
+import org.springframework.boot.web.server.MimeMappings;
 import org.springframework.boot.web.server.Shutdown;
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.boot.web.servlet.server.Encoding;
@@ -69,6 +70,9 @@ import org.springframework.util.unit.DataSize;
  * @author Victor Mandujano
  * @author Chris Bono
  * @author Parviz Rozikov
+ * @author Florian Storz
+ * @author Michael Weidmann
+ * @author Lasse Wulff
  * @since 1.0.0
  */
 @ConfigurationProperties(prefix = "server", ignoreUnknownFields = true)
@@ -98,9 +102,9 @@ public class ServerProperties {
 	private String serverHeader;
 
 	/**
-	 * Maximum size of the HTTP message header.
+	 * Maximum size of the HTTP request header.
 	 */
-	private DataSize maxHttpHeaderSize = DataSize.ofKilobytes(8);
+	private DataSize maxHttpRequestHeaderSize = DataSize.ofKilobytes(8);
 
 	/**
 	 * Type of shutdown that the server will support.
@@ -112,6 +116,11 @@ public class ServerProperties {
 
 	@NestedConfigurationProperty
 	private final Compression compression = new Compression();
+
+	/**
+	 * Custom MIME mappings in addition to the default MIME mappings.
+	 */
+	private final MimeMappings mimeMappings = new MimeMappings();
 
 	@NestedConfigurationProperty
 	private final Http2 http2 = new Http2();
@@ -152,12 +161,12 @@ public class ServerProperties {
 		this.serverHeader = serverHeader;
 	}
 
-	public DataSize getMaxHttpHeaderSize() {
-		return this.maxHttpHeaderSize;
+	public DataSize getMaxHttpRequestHeaderSize() {
+		return this.maxHttpRequestHeaderSize;
 	}
 
-	public void setMaxHttpHeaderSize(DataSize maxHttpHeaderSize) {
-		this.maxHttpHeaderSize = maxHttpHeaderSize;
+	public void setMaxHttpRequestHeaderSize(DataSize maxHttpRequestHeaderSize) {
+		this.maxHttpRequestHeaderSize = maxHttpRequestHeaderSize;
 	}
 
 	public Shutdown getShutdown() {
@@ -182,6 +191,14 @@ public class ServerProperties {
 
 	public Compression getCompression() {
 		return this.compression;
+	}
+
+	public MimeMappings getMimeMappings() {
+		return this.mimeMappings;
+	}
+
+	public void setMimeMappings(Map<String, String> customMappings) {
+		customMappings.forEach(this.mimeMappings::add);
 	}
 
 	public Http2 getHttp2() {
@@ -327,6 +344,11 @@ public class ServerProperties {
 			@DurationUnit(ChronoUnit.SECONDS)
 			private Duration timeout = Duration.ofMinutes(30);
 
+			/**
+			 * Maximum number of sessions that can be stored.
+			 */
+			private int maxSessions = 10000;
+
 			@NestedConfigurationProperty
 			private final Cookie cookie = new Cookie();
 
@@ -336,6 +358,14 @@ public class ServerProperties {
 
 			public void setTimeout(Duration timeout) {
 				this.timeout = timeout;
+			}
+
+			public int getMaxSessions() {
+				return this.maxSessions;
+			}
+
+			public void setMaxSessions(int maxSessions) {
+				this.maxSessions = maxSessions;
 			}
 
 			public Cookie getCookie() {
@@ -462,6 +492,7 @@ public class ServerProperties {
 		/**
 		 * Whether to reject requests with illegal header names or values.
 		 */
+		@Deprecated(since = "2.7.12", forRemoval = true) // Remove in 3.3
 		private boolean rejectIllegalHeader = true;
 
 		/**
@@ -478,6 +509,11 @@ public class ServerProperties {
 		 * Remote Ip Valve configuration.
 		 */
 		private final Remoteip remoteip = new Remoteip();
+
+		/**
+		 * Maximum size of the HTTP response header.
+		 */
+		private DataSize maxHttpResponseHeaderSize = DataSize.ofKilobytes(8);
 
 		public DataSize getMaxHttpFormPostSize() {
 			return this.maxHttpFormPostSize;
@@ -615,10 +651,13 @@ public class ServerProperties {
 			this.connectionTimeout = connectionTimeout;
 		}
 
+		@Deprecated(since = "3.2.0", forRemoval = true)
+		@DeprecatedConfigurationProperty(reason = "The setting has been deprecated in Tomcat", since = "3.2.0")
 		public boolean isRejectIllegalHeader() {
 			return this.rejectIllegalHeader;
 		}
 
+		@Deprecated(since = "3.2.0", forRemoval = true)
 		public void setRejectIllegalHeader(boolean rejectIllegalHeader) {
 			this.rejectIllegalHeader = rejectIllegalHeader;
 		}
@@ -633,6 +672,14 @@ public class ServerProperties {
 
 		public Remoteip getRemoteip() {
 			return this.remoteip;
+		}
+
+		public DataSize getMaxHttpResponseHeaderSize() {
+			return this.maxHttpResponseHeaderSize;
+		}
+
+		public void setMaxHttpResponseHeaderSize(DataSize maxHttpResponseHeaderSize) {
+			this.maxHttpResponseHeaderSize = maxHttpResponseHeaderSize;
 		}
 
 		/**
@@ -691,7 +738,7 @@ public class ServerProperties {
 			private String locale;
 
 			/**
-			 * Whether to check for log file existence so it can be recreated it if an
+			 * Whether to check for log file existence so it can be recreated if an
 			 * external process has renamed it.
 			 */
 			private boolean checkExists = false;
@@ -886,6 +933,11 @@ public class ServerProperties {
 			 */
 			private int minSpare = 10;
 
+			/**
+			 * Maximum capacity of the thread pool's backing queue.
+			 */
+			private int maxQueueCapacity = 2147483647;
+
 			public int getMax() {
 				return this.max;
 			}
@@ -900,6 +952,14 @@ public class ServerProperties {
 
 			public void setMinSpare(int minSpare) {
 				this.minSpare = minSpare;
+			}
+
+			public int getMaxQueueCapacity() {
+				return this.maxQueueCapacity;
+			}
+
+			public void setMaxQueueCapacity(int maxQueueCapacity) {
+				this.maxQueueCapacity = maxQueueCapacity;
 			}
 
 		}
@@ -963,8 +1023,13 @@ public class ServerProperties {
 					+ "192\\.168\\.\\d{1,3}\\.\\d{1,3}|" // 192.168/16
 					+ "169\\.254\\.\\d{1,3}\\.\\d{1,3}|" // 169.254/16
 					+ "127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|" // 127/8
+					+ "100\\.6[4-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 100.64.0.0/10
+					+ "100\\.[7-9]{1}\\d{1}\\.\\d{1,3}\\.\\d{1,3}|" // 100.64.0.0/10
+					+ "100\\.1[0-1]{1}\\d{1}\\.\\d{1,3}\\.\\d{1,3}|" // 100.64.0.0/10
+					+ "100\\.12[0-7]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 100.64.0.0/10
 					+ "172\\.1[6-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 172.16/12
-					+ "172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|" //
+					+ "172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 172.16/12
+					+ "172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|" // 172.16/12
 					+ "0:0:0:0:0:0:0:1|::1";
 
 			/**
@@ -1085,6 +1150,17 @@ public class ServerProperties {
 		 */
 		private Duration connectionIdleTimeout;
 
+		/**
+		 * Maximum size of the HTTP response header.
+		 */
+		private DataSize maxHttpResponseHeaderSize = DataSize.ofKilobytes(8);
+
+		/**
+		 * Maximum number of connections that the server accepts and processes at any
+		 * given time.
+		 */
+		private int maxConnections = -1;
+
 		public Accesslog getAccesslog() {
 			return this.accesslog;
 		}
@@ -1107,6 +1183,22 @@ public class ServerProperties {
 
 		public void setConnectionIdleTimeout(Duration connectionIdleTimeout) {
 			this.connectionIdleTimeout = connectionIdleTimeout;
+		}
+
+		public DataSize getMaxHttpResponseHeaderSize() {
+			return this.maxHttpResponseHeaderSize;
+		}
+
+		public void setMaxHttpResponseHeaderSize(DataSize maxHttpResponseHeaderSize) {
+			this.maxHttpResponseHeaderSize = maxHttpResponseHeaderSize;
+		}
+
+		public int getMaxConnections() {
+			return this.maxConnections;
+		}
+
+		public void setMaxConnections(int maxConnections) {
+			this.maxConnections = maxConnections;
 		}
 
 		/**
@@ -1350,11 +1442,6 @@ public class ServerProperties {
 		private DataSize initialBufferSize = DataSize.ofBytes(128);
 
 		/**
-		 * Maximum chunk size that can be decoded for an HTTP request.
-		 */
-		private DataSize maxChunkSize = DataSize.ofKilobytes(8);
-
-		/**
 		 * Maximum length that can be decoded for an HTTP request's initial line.
 		 */
 		private DataSize maxInitialLineLength = DataSize.ofKilobytes(4);
@@ -1398,17 +1485,6 @@ public class ServerProperties {
 
 		public void setInitialBufferSize(DataSize initialBufferSize) {
 			this.initialBufferSize = initialBufferSize;
-		}
-
-		@Deprecated
-		@DeprecatedConfigurationProperty(reason = "Deprecated for removal in Reactor Netty")
-		public DataSize getMaxChunkSize() {
-			return this.maxChunkSize;
-		}
-
-		@Deprecated
-		public void setMaxChunkSize(DataSize maxChunkSize) {
-			this.maxChunkSize = maxChunkSize;
 		}
 
 		public DataSize getMaxInitialLineLength() {
@@ -1495,9 +1571,18 @@ public class ServerProperties {
 		 * Whether the server should decode percent encoded slash characters. Enabling
 		 * encoded slashes can have security implications due to different servers
 		 * interpreting the slash differently. Only enable this if you have a legacy
-		 * application that requires it.
+		 * application that requires it. Has no effect when server.undertow.decode-slash
+		 * is set.
 		 */
 		private boolean allowEncodedSlash = false;
+
+		/**
+		 * Whether encoded slash characters (%2F) should be decoded. Decoding can cause
+		 * security problems if a front-end proxy does not perform the same decoding. Only
+		 * enable this if you have a legacy application that requires it. When set,
+		 * server.undertow.allow-encoded-slash has no effect.
+		 */
+		private Boolean decodeSlash;
 
 		/**
 		 * Whether the URL should be decoded. When disabled, percent-encoded characters in
@@ -1592,12 +1677,23 @@ public class ServerProperties {
 			this.maxCookies = maxCookies;
 		}
 
+		@DeprecatedConfigurationProperty(replacement = "server.undertow.decode-slash", since = "3.0.3")
+		@Deprecated(forRemoval = true, since = "3.0.3")
 		public boolean isAllowEncodedSlash() {
 			return this.allowEncodedSlash;
 		}
 
+		@Deprecated(forRemoval = true, since = "3.0.3")
 		public void setAllowEncodedSlash(boolean allowEncodedSlash) {
 			this.allowEncodedSlash = allowEncodedSlash;
+		}
+
+		public Boolean getDecodeSlash() {
+			return this.decodeSlash;
+		}
+
+		public void setDecodeSlash(Boolean decodeSlash) {
+			this.decodeSlash = decodeSlash;
 		}
 
 		public boolean isDecodeUrl() {
@@ -1773,9 +1869,15 @@ public class ServerProperties {
 
 		public static class Options {
 
-			private Map<String, String> socket = new LinkedHashMap<>();
+			/**
+			 * Socket options as defined in org.xnio.Options.
+			 */
+			private final Map<String, String> socket = new LinkedHashMap<>();
 
-			private Map<String, String> server = new LinkedHashMap<>();
+			/**
+			 * Server options as defined in io.undertow.UndertowOptions.
+			 */
+			private final Map<String, String> server = new LinkedHashMap<>();
 
 			public Map<String, String> getServer() {
 				return this.server;

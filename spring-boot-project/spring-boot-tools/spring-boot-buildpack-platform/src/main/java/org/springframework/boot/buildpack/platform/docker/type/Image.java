@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ package org.springframework.boot.buildpack.platform.docker.type;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -45,28 +43,22 @@ public class Image extends MappedObject {
 
 	private final String os;
 
+	private final String created;
+
 	Image(JsonNode node) {
 		super(node, MethodHandles.lookup());
-		this.digests = getDigests(getNode().at("/RepoDigests"));
+		this.digests = childrenAt("/RepoDigests", JsonNode::asText);
 		this.config = new ImageConfig(getNode().at("/Config"));
 		this.layers = extractLayers(valueAt("/RootFS/Layers", String[].class));
 		this.os = valueAt("/Os", String.class);
-	}
-
-	private List<String> getDigests(JsonNode node) {
-		if (node.isEmpty()) {
-			return Collections.emptyList();
-		}
-		List<String> digests = new ArrayList<>();
-		node.forEach((child) -> digests.add(child.asText()));
-		return Collections.unmodifiableList(digests);
+		this.created = valueAt("/Created", String.class);
 	}
 
 	private List<LayerId> extractLayers(String[] layers) {
 		if (layers == null) {
 			return Collections.emptyList();
 		}
-		return Collections.unmodifiableList(Arrays.stream(layers).map(LayerId::of).collect(Collectors.toList()));
+		return Arrays.stream(layers).map(LayerId::of).toList();
 	}
 
 	/**
@@ -99,6 +91,14 @@ public class Image extends MappedObject {
 	 */
 	public String getOs() {
 		return (this.os != null) ? this.os : "linux";
+	}
+
+	/**
+	 * Return the created date of the image.
+	 * @return the image created date
+	 */
+	public String getCreated() {
+		return this.created;
 	}
 
 	/**

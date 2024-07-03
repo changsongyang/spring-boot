@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.mock;
  */
 class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 
-	private AvailabilityProbesHealthEndpointGroupsPostProcessor postProcessor = new AvailabilityProbesHealthEndpointGroupsPostProcessor(
+	private final AvailabilityProbesHealthEndpointGroupsPostProcessor postProcessor = new AvailabilityProbesHealthEndpointGroupsPostProcessor(
 			new MockEnvironment());
 
 	@Test
@@ -49,7 +49,7 @@ class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 		names.add("liveness");
 		given(groups.getNames()).willReturn(names);
 		assertThat(this.postProcessor.postProcessHealthEndpointGroups(groups))
-				.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
+			.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
 	}
 
 	@Test
@@ -60,7 +60,7 @@ class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 		names.add("readiness");
 		given(groups.getNames()).willReturn(names);
 		assertThat(this.postProcessor.postProcessHealthEndpointGroups(groups))
-				.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
+			.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
 	}
 
 	@Test
@@ -72,7 +72,7 @@ class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 		names.add("boot");
 		given(groups.getNames()).willReturn(names);
 		assertThat(this.postProcessor.postProcessHealthEndpointGroups(groups))
-				.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
+			.isInstanceOf(AvailabilityProbesHealthEndpointGroups.class);
 	}
 
 	@Test
@@ -80,8 +80,8 @@ class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 		HealthEndpointGroups postProcessed = getPostProcessed("true");
 		HealthEndpointGroup liveness = postProcessed.get("liveness");
 		HealthEndpointGroup readiness = postProcessed.get("readiness");
-		assertThat(liveness.getAdditionalPath().toString()).isEqualTo("server:/livez");
-		assertThat(readiness.getAdditionalPath().toString()).isEqualTo("server:/readyz");
+		assertThat(liveness.getAdditionalPath()).hasToString("server:/livez");
+		assertThat(readiness.getAdditionalPath()).hasToString("server:/readyz");
 	}
 
 	@Test
@@ -99,8 +99,8 @@ class AvailabilityProbesHealthEndpointGroupsPostProcessorTests {
 		HealthEndpointGroups postProcessed = postProcessor.postProcessHealthEndpointGroups(groups);
 		HealthEndpointGroup liveness = postProcessed.get("liveness");
 		HealthEndpointGroup readiness = postProcessed.get("readiness");
-		assertThat(liveness.getAdditionalPath().toString()).isEqualTo("server:/livez");
-		assertThat(readiness.getAdditionalPath().toString()).isEqualTo("server:/readyz");
+		assertThat(liveness.getAdditionalPath()).hasToString("server:/livez");
+		assertThat(readiness.getAdditionalPath()).hasToString("server:/readyz");
 	}
 
 	private HealthEndpointGroups getPostProcessed(String value) {

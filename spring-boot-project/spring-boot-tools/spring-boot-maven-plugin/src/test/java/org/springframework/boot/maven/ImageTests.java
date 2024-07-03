@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.boot.maven;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 import org.apache.maven.artifact.Artifact;
@@ -34,6 +35,7 @@ import org.springframework.boot.buildpack.platform.docker.type.Binding;
 import org.springframework.boot.buildpack.platform.docker.type.ImageReference;
 import org.springframework.boot.buildpack.platform.io.Owner;
 import org.springframework.boot.buildpack.platform.io.TarArchive;
+import org.springframework.boot.maven.CacheInfo.BindCacheInfo;
 import org.springframework.boot.maven.CacheInfo.VolumeCacheInfo;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,7 +54,7 @@ class ImageTests {
 	@Test
 	void getBuildRequestWhenNameIsNullDeducesName() {
 		BuildRequest request = new Image().getBuildRequest(createArtifact(), mockApplicationContent());
-		assertThat(request.getName().toString()).isEqualTo("docker.io/library/my-app:0.0.1-SNAPSHOT");
+		assertThat(request.getName()).hasToString("docker.io/library/my-app:0.0.1-SNAPSHOT");
 	}
 
 	@Test
@@ -60,14 +62,14 @@ class ImageTests {
 		Image image = new Image();
 		image.name = "demo";
 		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
-		assertThat(request.getName().toString()).isEqualTo("docker.io/library/demo:latest");
+		assertThat(request.getName()).hasToString("docker.io/library/demo:latest");
 	}
 
 	@Test
 	void getBuildRequestWhenNoCustomizationsUsesDefaults() {
 		BuildRequest request = new Image().getBuildRequest(createArtifact(), mockApplicationContent());
-		assertThat(request.getName().toString()).isEqualTo("docker.io/library/my-app:0.0.1-SNAPSHOT");
-		assertThat(request.getBuilder().toString()).contains("paketobuildpacks/builder");
+		assertThat(request.getName()).hasToString("docker.io/library/my-app:0.0.1-SNAPSHOT");
+		assertThat(request.getBuilder().toString()).contains("paketobuildpacks/builder-jammy-tiny");
 		assertThat(request.getRunImage()).isNull();
 		assertThat(request.getEnv()).isEmpty();
 		assertThat(request.isCleanCache()).isFalse();
@@ -83,7 +85,7 @@ class ImageTests {
 		Image image = new Image();
 		image.builder = "springboot/builder:2.2.x";
 		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
-		assertThat(request.getBuilder().toString()).isEqualTo("docker.io/springboot/builder:2.2.x");
+		assertThat(request.getBuilder()).hasToString("docker.io/springboot/builder:2.2.x");
 	}
 
 	@Test
@@ -91,7 +93,7 @@ class ImageTests {
 		Image image = new Image();
 		image.runImage = "springboot/run:latest";
 		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
-		assertThat(request.getRunImage().toString()).isEqualTo("docker.io/springboot/run:latest");
+		assertThat(request.getRunImage()).hasToString("docker.io/springboot/run:latest");
 	}
 
 	@Test
@@ -170,19 +172,90 @@ class ImageTests {
 	}
 
 	@Test
-	void getBuildRequestWhenHasBuildVolumeCacheUsesCache() {
+	void getBuildRequestWhenHasBuildWorkspaceVolumeUsesWorkspace() {
 		Image image = new Image();
-		image.buildCache = new CacheInfo(new VolumeCacheInfo("build-cache-vol"));
+		image.buildWorkspace = CacheInfo.fromVolume(new VolumeCacheInfo("build-work-vol"));
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getBuildWorkspace()).isEqualTo(Cache.volume("build-work-vol"));
+	}
+
+	@Test
+	void getBuildRequestWhenHasBuildCacheVolumeUsesCache() {
+		Image image = new Image();
+		image.buildCache = CacheInfo.fromVolume(new VolumeCacheInfo("build-cache-vol"));
 		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
 		assertThat(request.getBuildCache()).isEqualTo(Cache.volume("build-cache-vol"));
 	}
 
 	@Test
-	void getBuildRequestWhenHasLaunchVolumeCacheUsesCache() {
+	void getBuildRequestWhenHasLaunchCacheVolumeUsesCache() {
 		Image image = new Image();
-		image.launchCache = new CacheInfo(new VolumeCacheInfo("launch-cache-vol"));
+		image.launchCache = CacheInfo.fromVolume(new VolumeCacheInfo("launch-cache-vol"));
 		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
 		assertThat(request.getLaunchCache()).isEqualTo(Cache.volume("launch-cache-vol"));
+	}
+
+	@Test
+	void getBuildRequestWhenHasBuildWorkspaceBindUsesWorkspace() {
+		Image image = new Image();
+		image.buildWorkspace = CacheInfo.fromBind(new BindCacheInfo("build-work-dir"));
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getBuildWorkspace()).isEqualTo(Cache.bind("build-work-dir"));
+	}
+
+	@Test
+	void getBuildRequestWhenHasBuildCacheBindUsesCache() {
+		Image image = new Image();
+		image.buildCache = CacheInfo.fromBind(new BindCacheInfo("build-cache-dir"));
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getBuildCache()).isEqualTo(Cache.bind("build-cache-dir"));
+	}
+
+	@Test
+	void getBuildRequestWhenHasLaunchCacheBindUsesCache() {
+		Image image = new Image();
+		image.launchCache = CacheInfo.fromBind(new BindCacheInfo("launch-cache-dir"));
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getLaunchCache()).isEqualTo(Cache.bind("launch-cache-dir"));
+	}
+
+	@Test
+	void getBuildRequestWhenHasCreatedDateUsesCreatedDate() {
+		Image image = new Image();
+		image.createdDate = "2020-07-01T12:34:56Z";
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getCreatedDate()).isEqualTo("2020-07-01T12:34:56Z");
+	}
+
+	@Test
+	void getBuildRequestWhenHasApplicationDirectoryUsesApplicationDirectory() {
+		Image image = new Image();
+		image.applicationDirectory = "/application";
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getApplicationDirectory()).isEqualTo("/application");
+	}
+
+	@Test
+	void getBuildRequestWhenHasNoSecurityOptionsUsesNoSecurityOptions() {
+		Image image = new Image();
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getSecurityOptions()).isNull();
+	}
+
+	@Test
+	void getBuildRequestWhenHasSecurityOptionsUsesSecurityOptions() {
+		Image image = new Image();
+		image.securityOptions = List.of("label=user:USER", "label=role:ROLE");
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getSecurityOptions()).containsExactly("label=user:USER", "label=role:ROLE");
+	}
+
+	@Test
+	void getBuildRequestWhenHasEmptySecurityOptionsUsesSecurityOptions() {
+		Image image = new Image();
+		image.securityOptions = Collections.emptyList();
+		BuildRequest request = image.getBuildRequest(createArtifact(), mockApplicationContent());
+		assertThat(request.getSecurityOptions()).isEmpty();
 	}
 
 	private Artifact createArtifact() {

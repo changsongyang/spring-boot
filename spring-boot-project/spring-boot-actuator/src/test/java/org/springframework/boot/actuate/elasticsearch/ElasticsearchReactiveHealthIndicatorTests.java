@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.actuate.data.elasticsearch.ElasticsearchReactiveHealthIndicator;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.Status;
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient;
@@ -120,8 +121,8 @@ class ElasticsearchReactiveHealthIndicatorTests {
 
 	private void setupMockResponse(int responseCode, String status) {
 		MockResponse mockResponse = new MockResponse().setBody(createJsonResult(status))
-				.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-				.setHeader("X-Elastic-Product", "Elasticsearch");
+			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+			.setHeader("X-Elastic-Product", "Elasticsearch");
 		this.server.enqueue(mockResponse);
 	}
 
