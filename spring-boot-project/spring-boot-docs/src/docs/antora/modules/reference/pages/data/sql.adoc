@@ -93,7 +93,7 @@ If you need to specify a specific class, you can use the configprop:spring.datas
 NOTE: For a pooling `DataSource` to be created, we need to be able to verify that a valid `Driver` class is available, so we check for that before doing anything.
 In other words, if you set `spring.datasource.driver-class-name=com.mysql.jdbc.Driver`, then that class has to be loadable.
 
-See xref:api:java/org/springframework/boot/autoconfigure/jdbc/DataSourceProperties.html[`DataSourceProperties`] API documentation for more of the supported options.
+See javadoc:org.springframework.boot.autoconfigure.jdbc.DataSourceProperties[] API documentation for more of the supported options.
 These are the standard options that work regardless of xref:data/sql.adoc#data.sql.datasource.connection-pool[the actual implementation].
 It is also possible to fine-tune implementation-specific settings by using their respective prefix (`+spring.datasource.hikari.*+`, `+spring.datasource.tomcat.*+`, `+spring.datasource.dbcp2.*+`, and `+spring.datasource.oracleucp.*+`).
 See the documentation of the connection pool implementation you are using for more details.
@@ -236,9 +236,9 @@ See the xref:how-to:data-access.adoc#howto.data-access.separate-entity-definitio
 JPA queries are created automatically from your method names.
 For example, a `CityRepository` interface might declare a `findAllByState(String state)` method to find all the cities in a given state.
 
-For more complex queries, you can annotate your method with Spring Data's {url-spring-data-jpa-javadoc}/org/springframework/data/jpa/repository/Query.html[`Query`] annotation.
+For more complex queries, you can annotate your method with Spring Data's javadoc:{url-spring-data-jpa-javadoc}/org.springframework.data.jpa.repository.Query[] annotation.
 
-Spring Data repositories usually extend from the {url-spring-data-commons-javadoc}/org/springframework/data/repository/Repository.html[`Repository`] or {url-spring-data-commons-javadoc}/org/springframework/data/repository/CrudRepository.html[`CrudRepository`] interfaces.
+Spring Data repositories usually extend from the javadoc:{url-spring-data-commons-javadoc}/org.springframework.data.repository.Repository[] or javadoc:{url-spring-data-commons-javadoc}/org.springframework.data.repository.CrudRepository[] interfaces.
 If you use auto-configuration, the xref:using/auto-configuration.adoc#using.auto-configuration.packages[auto-configuration packages] are searched for repositories.
 
 TIP: You can customize the locations to look for repositories using `@EnableJpaRepositories`.
@@ -313,7 +313,7 @@ By default, the DDL execution (or validation) is deferred until the `Application
 [[data.sql.jpa-and-spring-data.open-entity-manager-in-view]]
 === Open EntityManager in View
 
-If you are running a web application, Spring Boot by default registers {url-spring-framework-javadoc}/org/springframework/orm/jpa/support/OpenEntityManagerInViewInterceptor.html[`OpenEntityManagerInViewInterceptor`] to apply the "`Open EntityManager in View`" pattern, to allow for lazy loading in web views.
+If you are running a web application, Spring Boot by default registers javadoc:{url-spring-framework-javadoc}/org.springframework.orm.jpa.support.OpenEntityManagerInViewInterceptor[] to apply the "`Open EntityManager in View`" pattern, to allow for lazy loading in web views.
 If you do not want this behavior, you should set `spring.jpa.open-in-view` to `false` in your `application.properties`.
 
 
@@ -541,9 +541,9 @@ https://spring.io/projects/spring-data-r2dbc[Spring Data R2DBC] repositories are
 Queries are created automatically from your method names.
 For example, a `CityRepository` interface might declare a `findAllByState(String state)` method to find all the cities in a given state.
 
-For more complex queries, you can annotate your method with Spring Data's {url-spring-data-r2dbc-javadoc}/org/springframework/data/r2dbc/repository/Query.html[`Query`] annotation.
+For more complex queries, you can annotate your method with Spring Data's javadoc:{url-spring-data-r2dbc-javadoc}/org.springframework.data.r2dbc.repository.Query[format=annotation] annotation.
 
-Spring Data repositories usually extend from the {url-spring-data-commons-javadoc}/org/springframework/data/repository/Repository.html[`Repository`] or {url-spring-data-commons-javadoc}/org/springframework/data/repository/CrudRepository.html[`CrudRepository`] interfaces.
+Spring Data repositories usually extend from the javadoc:{url-spring-data-commons-javadoc}/org.springframework.data.repository.Repository[] or javadoc:{url-spring-data-commons-javadoc}/org.springframework.data.repository.CrudRepository[] interfaces.
 If you use auto-configuration, the xref:using/auto-configuration.adoc#using.auto-configuration.packages[auto-configuration packages] are searched for repositories.
 
 The following example shows a typical Spring Data repository interface definition:

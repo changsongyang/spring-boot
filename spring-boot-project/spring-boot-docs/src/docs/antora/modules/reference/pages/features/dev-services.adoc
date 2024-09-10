@@ -107,11 +107,14 @@ The following service connections are currently supported:
 | `Neo4jConnectionDetails`
 | Containers named "neo4j" or "bitnami/neo4j"
 
+| `OtlpLoggingConnectionDetails`
+| Containers named "otel/opentelemetry-collector-contrib", "grafana/otel-lgtm"
+
 | `OtlpMetricsConnectionDetails`
-| Containers named "otel/opentelemetry-collector-contrib"
+| Containers named "otel/opentelemetry-collector-contrib", "grafana/otel-lgtm"
 
 | `OtlpTracingConnectionDetails`
-| Containers named "otel/opentelemetry-collector-contrib"
+| Containers named "otel/opentelemetry-collector-contrib", "grafana/otel-lgtm"
 
 | `PulsarConnectionDetails`
 | Containers named "apachepulsar/pulsar"
@@ -123,7 +126,7 @@ The following service connections are currently supported:
 | Containers named "rabbitmq" or "bitnami/rabbitmq"
 
 | `RedisConnectionDetails`
-| Containers named "redis" or "bitnami/redis"
+| Containers named "redis", "bitnami/redis", "redis/redis-stack" or "redis/redis-stack-server"
 
 | `ZipkinConnectionDetails`
 | Containers named "openzipkin/zipkin".

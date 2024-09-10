@@ -276,13 +276,31 @@ class DefaultErrorAttributesTests {
 	}
 
 	@Test
+	void extractBindingResultErrorsThatCausedAResponseStatusException() throws Exception {
+		Method method = getClass().getDeclaredMethod("method", String.class);
+		MethodParameter stringParam = new MethodParameter(method, 0);
+		BindingResult bindingResult = new MapBindingResult(Collections.singletonMap("a", "b"), "objectName");
+		bindingResult.addError(new ObjectError("c", "d"));
+		Exception ex = new WebExchangeBindException(stringParam, bindingResult);
+		MockServerHttpRequest request = MockServerHttpRequest.get("/test").build();
+		Map<String, Object> attributes = this.errorAttributes.getErrorAttributes(
+				buildServerRequest(request, new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid", ex)),
+				ErrorAttributeOptions.of(Include.MESSAGE, Include.BINDING_ERRORS));
+		assertThat(attributes.get("message")).isEqualTo("Invalid");
+		assertThat(attributes).containsEntry("errors", bindingResult.getAllErrors());
+	}
+
+	@Test
 	void extractMethodValidationResultErrors() throws Exception {
 		Object target = "test";
 		Method method = String.class.getMethod("substring", int.class);
 		MethodParameter parameter = new MethodParameter(method, 0);
 		MethodValidationResult methodValidationResult = MethodValidationResult.create(target, method,
 				List.of(new ParameterValidationResult(parameter, -1,
-						List.of(new ObjectError("beginIndex", "beginIndex is negative")), null, null, null)));
+						List.of(new ObjectError("beginIndex", "beginIndex is negative")), null, null, null,
+						(error, sourceType) -> {
+							throw new IllegalArgumentException("No source object of the given type");
+						})));
 		HandlerMethodValidationException ex = new HandlerMethodValidationException(methodValidationResult);
 		MockServerHttpRequest request = MockServerHttpRequest.get("/test").build();
 		Map<String, Object> attributes = this.errorAttributes.getErrorAttributes(buildServerRequest(request, ex),

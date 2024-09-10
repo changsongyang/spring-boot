@@ -30,9 +30,10 @@ import org.springframework.test.web.client.RequestExpectationManager;
 import org.springframework.test.web.client.SimpleRequestExpectationManager;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClient.Builder;
 
 /**
- * {@link RestClientCustomizer} that can be applied to {@link RestClient.Builder}
+ * {@link RestClientCustomizer} that can be applied to {@link Builder RestClient.Builder}
  * instances to add {@link MockRestServiceServer} support.
  * <p>
  * Typically applied to an existing builder before it is used, for example:
@@ -49,6 +50,10 @@ import org.springframework.web.client.RestClient;
  * obtain the mock server. If the customizer has been used more than once the
  * {@link #getServer(RestClient.Builder)} or {@link #getServers()} method must be used to
  * access the related server.
+ * <p>
+ * If a mock server is used in more than one test case in a test class, it might be
+ * necessary to reset the expectations on the server between tests using
+ * {@code getServer().reset()} or {@code getServer(restClientBuilder).reset()}.
  *
  * @author Scott Frederick
  * @since 3.2.0

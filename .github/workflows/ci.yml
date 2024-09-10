@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os.id }}
     if: ${{ github.repository == 'spring-projects/spring-boot' }}
     strategy:
+      fail-fast: false
       matrix:
         os:
           - id: ubuntu-latest
@@ -21,9 +22,12 @@ jobs:
           - version: 17
             toolchain: false
           - version: 21
-            toolchain: true
+            toolchain: false
           - version: 22
-            toolchain: true
+            toolchain: false
+          - version: 23
+            early-access: true
+            toolchain: false
         exclude:
           - os:
               name: Linux
@@ -43,6 +47,7 @@ jobs:
         uses: ./.github/actions/build
         with:
           java-version: ${{ matrix.java.version }}
+          java-early-access: ${{ matrix.java.early-access || 'false' }}
           java-toolchain: ${{ matrix.java.toolchain }}
           develocity-access-key: ${{ secrets.GRADLE_ENTERPRISE_SECRET_ACCESS_KEY }}
       - name: Send Notification

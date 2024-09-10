@@ -29,7 +29,6 @@ import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfigu
 import org.springframework.boot.actuate.autoconfigure.metrics.export.ConditionalOnEnabledMetricsExport;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.actuate.metrics.export.prometheus.PrometheusScrapeEndpoint;
-import org.springframework.boot.actuate.metrics.export.prometheus.PrometheusSimpleclientScrapeEndpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -76,12 +75,13 @@ public class PrometheusMetricsExportAutoConfiguration {
 	}
 
 	@Configuration(proxyBeanMethods = false)
-	@ConditionalOnAvailableEndpoint(endpoint = PrometheusScrapeEndpoint.class)
+	@ConditionalOnAvailableEndpoint(PrometheusScrapeEndpoint.class)
 	static class PrometheusScrapeEndpointConfiguration {
 
 		@SuppressWarnings("removal")
 		@Bean
-		@ConditionalOnMissingBean({ PrometheusScrapeEndpoint.class, PrometheusSimpleclientScrapeEndpoint.class })
+		@ConditionalOnMissingBean({ PrometheusScrapeEndpoint.class,
+				org.springframework.boot.actuate.metrics.export.prometheus.PrometheusSimpleclientScrapeEndpoint.class })
 		PrometheusScrapeEndpoint prometheusEndpoint(PrometheusRegistry prometheusRegistry,
 				PrometheusConfig prometheusConfig) {
 			return new PrometheusScrapeEndpoint(prometheusRegistry, prometheusConfig.prometheusProperties());

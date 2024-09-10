@@ -113,6 +113,27 @@ class AntoraAsciidocAttributesTests {
 	}
 
 	@Test
+	void artifactReleaseTypeWhenRelease() {
+		AntoraAsciidocAttributes attributes = new AntoraAsciidocAttributes("1.2.3", true, null,
+				mockDependencyVersions(), null);
+		assertThat(attributes.get()).containsEntry("artifact-release-type", "release");
+	}
+
+	@Test
+	void artifactReleaseTypeWhenMilestone() {
+		AntoraAsciidocAttributes attributes = new AntoraAsciidocAttributes("1.2.3-M1", true, null,
+				mockDependencyVersions(), null);
+		assertThat(attributes.get()).containsEntry("artifact-release-type", "milestone");
+	}
+
+	@Test
+	void artifactReleaseTypeWhenSnapshot() {
+		AntoraAsciidocAttributes attributes = new AntoraAsciidocAttributes("1.2.3-SNAPSHOT", true, null,
+				mockDependencyVersions(), null);
+		assertThat(attributes.get()).containsEntry("artifact-release-type", "snapshot");
+	}
+
+	@Test
 	void urlLinksFromLibrary() {
 		Map<String, Function<LibraryVersion, String>> links = new LinkedHashMap<>();
 		links.put("site", (version) -> "https://example.com/site/" + version);
@@ -154,6 +175,7 @@ class AntoraAsciidocAttributesTests {
 	private Map<String, String> mockDependencyVersions() {
 		Map<String, String> versions = new LinkedHashMap<>();
 		addMockSpringDataVersion(versions, "spring-data-commons");
+		addMockSpringDataVersion(versions, "spring-data-cassandra");
 		addMockSpringDataVersion(versions, "spring-data-couchbase");
 		addMockSpringDataVersion(versions, "spring-data-elasticsearch");
 		addMockSpringDataVersion(versions, "spring-data-jdbc");
@@ -162,11 +184,18 @@ class AntoraAsciidocAttributesTests {
 		addMockSpringDataVersion(versions, "spring-data-neo4j");
 		addMockSpringDataVersion(versions, "spring-data-r2dbc");
 		addMockSpringDataVersion(versions, "spring-data-rest-core");
+		addMockJacksonVersion(versions, "jackson-annotations");
+		addMockJacksonVersion(versions, "jackson-core");
+		addMockJacksonVersion(versions, "jackson-databind");
 		return versions;
 	}
 
 	private void addMockSpringDataVersion(Map<String, String> versions, String artifactId) {
 		versions.put("org.springframework.data:" + artifactId, "1.2.3");
+	}
+
+	private void addMockJacksonVersion(Map<String, String> versions, String artifactId) {
+		versions.put("com.fasterxml.jackson.core:" + artifactId, "2.3.4");
 	}
 
 }

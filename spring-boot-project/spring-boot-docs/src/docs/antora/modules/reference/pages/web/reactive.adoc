@@ -64,16 +64,19 @@ Conversion can also be customized using the `spring.webflux.format.*` configurat
 When not configured, the following defaults are used:
 
 |===
-|Property |`DateTimeFormatter`
+|Property |`DateTimeFormatter` |Formats
 
 |configprop:spring.webflux.format.date[]
 |`ofLocalizedDate(FormatStyle.SHORT)`
+|`java.util.Date` and `java.time.LocalDate`
 
 |configprop:spring.webflux.format.time[]
 |`ofLocalizedTime(FormatStyle.SHORT)`
+|java.time's `LocalTime` and `OffsetTime`
 
 |configprop:spring.webflux.format.date-time[]
 |`ofLocalizedDateTime(FormatStyle.SHORT)`
+|java.time's `LocalDateTime`, `OffsetDateTime`, and `ZonedDateTime`
 |===
 
 
@@ -162,6 +165,9 @@ Spring Boot includes auto-configuration support for the following templating eng
 * https://www.thymeleaf.org[Thymeleaf]
 * https://mustache.github.io/[Mustache]
 
+NOTE: Not all FreeMarker features are supported with WebFlux.
+For more details, check the description of each property.
+
 When you use one of these templating engines with the default configuration, your templates are picked up automatically from `src/main/resources/templates`.
 
 
@@ -175,7 +181,7 @@ For machine clients, it produces a JSON response with details of the error, the 
 For browser clients, there is a "`whitelabel`" error handler that renders the same data in HTML format.
 You can also provide your own HTML templates to display errors (see the xref:web/reactive.adoc#web.reactive.webflux.error-handling.error-pages[next section]).
 
-Before customizing error handling in Spring Boot directly, you can leverage the {url-spring-framework-docs}/web/webflux/ann-rest-exceptions.html[RFC 7807 Problem Details] support in Spring WebFlux.
+Before customizing error handling in Spring Boot directly, you can leverage the {url-spring-framework-docs}/web/webflux/ann-rest-exceptions.html[RFC 9457 Problem Details] support in Spring WebFlux.
 Spring WebFlux can produce custom error messages with the `application/problem+json` media type, like:
 
 [source,json]
@@ -294,7 +300,7 @@ Common server settings include:
 Spring Boot tries as much as possible to expose common settings, but this is not always possible.
 For those cases, dedicated namespaces such as `server.netty.*` offer server-specific customizations.
 
-TIP: See the xref:api:java/org/springframework/boot/autoconfigure/web/ServerProperties.html[`ServerProperties`] class for a complete list.
+TIP: See the javadoc:org.springframework.boot.autoconfigure.web.ServerProperties[] class for a complete list.
 
 
 
@@ -321,7 +327,7 @@ For more advanced use cases that require you to extend from `ReactiveWebServerFa
 
 Setters are provided for many configuration options.
 Several protected method "`hooks`" are also provided should you need to do something more exotic.
-See the xref:api:java/org/springframework/boot/web/reactive/server/ConfigurableReactiveWebServerFactory.html[`ConfigurableReactiveWebServerFactory`] API documentation for details.
+See the javadoc:org.springframework.boot.web.reactive.server.ConfigurableReactiveWebServerFactory[] API documentation for details.
 
 NOTE: Auto-configured customizers are still applied on your custom factory, so use that option carefully.
 

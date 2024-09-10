@@ -1,4 +1,5 @@
 plugins {
+	id "dev.adamko.dokkatoo-html"
 	id "java"
 	id "org.antora"
 	id "org.springframework.boot.conventions"
@@ -15,6 +16,15 @@ configurations {
 	springApplicationExample
 	testSlices
 	antoraContent
+	all {
+		resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+			if (details.requested.module.group == "org.apache.kafka" && details.requested.module.name == "kafka-server-common") {
+				details.artifactSelection {
+					selectArtifact(DependencyArtifact.DEFAULT_TYPE, null, null)
+				}
+			}
+		}
+	}
 }
 
 jar {
@@ -34,7 +44,7 @@ sourcesJar {
 }
 
 plugins.withType(EclipsePlugin) {
-	extensions.getByType(org.gradle.plugins.ide.eclipse.model.EclipseModel).classpath { classpath ->
+	eclipse.classpath { classpath ->
 		classpath.plusConfigurations.add(configurations.getByName(sourceSets.main.runtimeClasspathConfigurationName))
 	}
 }
@@ -73,6 +83,7 @@ dependencies {
 	implementation("io.micrometer:micrometer-tracing")
 	implementation("io.micrometer:micrometer-registry-graphite")
 	implementation("io.micrometer:micrometer-registry-jmx")
+	implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0")
 	implementation("io.projectreactor.netty:reactor-netty-http")
 	implementation("io.undertow:undertow-core")
 	implementation("jakarta.annotation:jakarta.annotation-api")

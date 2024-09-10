@@ -66,6 +66,7 @@ dependencies {
 	optional("org.testcontainers:cassandra")
 	optional("org.testcontainers:couchbase")
 	optional("org.testcontainers:elasticsearch")
+	optional("org.testcontainers:grafana")
 	optional("org.testcontainers:jdbc")
 	optional("org.testcontainers:kafka")
 	optional("org.testcontainers:mariadb")
@@ -80,6 +81,7 @@ dependencies {
 	optional("org.testcontainers:rabbitmq")
 	optional("org.testcontainers:redpanda")
 	optional("org.testcontainers:r2dbc")
+	optional("com.redis:testcontainers-redis")
 
 	testImplementation(project(":spring-boot-project:spring-boot-test"))
 	testImplementation(project(":spring-boot-project:spring-boot-tools:spring-boot-test-support"))

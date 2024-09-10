@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import com.redis.testcontainers.RedisContainer;
+import com.redis.testcontainers.RedisStackContainer;
 import org.testcontainers.activemq.ActiveMQContainer;
 import org.testcontainers.activemq.ArtemisContainer;
 import org.testcontainers.containers.CassandraContainer;
@@ -36,13 +38,14 @@ import org.testcontainers.containers.PulsarContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.grafana.LgtmStackContainer;
 import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import org.springframework.util.Assert;
 
 /**
- * References to container images used for integration tests. This class also acts a a
+ * References to container images used for integration tests. This class also acts a
  * central location for tests to {@link #container(Class) create} a correctly configured
  * {@link Container testcontainer}.
  *
@@ -101,6 +104,12 @@ public enum TestImage {
 	ELASTICSEARCH_8("elasticsearch", "8.6.1"),
 
 	/**
+	 * A container image suitable for testing Grafana OTel LGTM.
+	 */
+	GRAFANA_OTEL_LGTM("grafana/otel-lgtm", "0.6.0", () -> LgtmStackContainer.class,
+			(container) -> ((LgtmStackContainer) container).withStartupTimeout(Duration.ofMinutes(2))),
+
+	/**
 	 * A container image suitable for testing Confluent's distribution of Kafka.
 	 */
 	CONFLUENT_KAFKA("confluentinc/cp-kafka", "7.4.0", () -> KafkaContainer.class),
@@ -109,6 +118,11 @@ public enum TestImage {
 	 * A container image suitable for testing OpenLDAP.
 	 */
 	OPEN_LDAP("osixia/openldap", "1.5.0", () -> OpenLdapContainer.class),
+
+	/**
+	 * A container image suitable for testing SMTP.
+	 */
+	MAILPIT("axllent/mailpit", "v1.19.0", () -> MailpitContainer.class),
 
 	/**
 	 * A container image suitable for testing MariaDB.
@@ -161,7 +175,7 @@ public enum TestImage {
 	/**
 	 * A container image suitable for testing Pulsar.
 	 */
-	PULSAR("apachepulsar/pulsar", "3.2.0", () -> PulsarContainer.class,
+	PULSAR("apachepulsar/pulsar", "3.2.4", () -> PulsarContainer.class,
 			(container) -> ((PulsarContainer) container).withStartupAttempts(2)
 				.withStartupTimeout(Duration.ofMinutes(3))),
 
@@ -176,6 +190,20 @@ public enum TestImage {
 	 */
 	REDIS("redis", "7.0.11", () -> RedisContainer.class,
 			(container) -> ((RedisContainer) container).withStartupAttempts(5)
+				.withStartupTimeout(Duration.ofMinutes(10))),
+
+	/**
+	 * A container image suitable for testing Redis Stack.
+	 */
+	REDIS_STACK("redis/redis-stack", "7.2.0-v11", () -> RedisStackContainer.class,
+			(container) -> ((RedisStackContainer) container).withStartupAttempts(5)
+				.withStartupTimeout(Duration.ofMinutes(10))),
+
+	/**
+	 * A container image suitable for testing Redis Stack Server.
+	 */
+	REDIS_STACK_SERVER("redis/redis-stack-server", "7.2.0-v11", () -> RedisStackServerContainer.class,
+			(container) -> ((RedisStackServerContainer) container).withStartupAttempts(5)
 				.withStartupTimeout(Duration.ofMinutes(10))),
 
 	/**
@@ -264,6 +292,10 @@ public enum TestImage {
 
 	TestImage(String name, String tag, Supplier<Class<?>> containerClass) {
 		this(name, tag, containerClass, null);
+	}
+
+	TestImage(String name, String tag, Consumer<?> containerSetup) {
+		this(name, tag, null, containerSetup);
 	}
 
 	TestImage(String name, String tag, Supplier<Class<?>> containerClass, Consumer<?> containerSetup) {

@@ -5,9 +5,13 @@ inputs:
     required: false
     default: '17'
     description: 'The Java version to use for the build'
+  java-early-access:
+    required: false
+    default: 'false'
+    description: 'Whether the Java version is in early access'
   java-toolchain:
     required: false
-    default: false
+    default: 'false'
     description: 'Whether a Java toolchain should be used'
   develocity-access-key:
     required: false
@@ -23,12 +27,12 @@ runs:
     - name: Set Up Java
       uses: actions/setup-java@v4
       with:
-        distribution: 'liberica'
+        distribution: ${{ inputs.java-early-access == 'true' && 'temurin' || 'liberica' }}
         java-version: |
-          ${{ inputs.java-version }}
+          ${{ inputs.java-early-access == 'true' && format('{0}-ea', inputs.java-version) || inputs.java-version }}
           ${{ inputs.java-toolchain == 'true' && '17' || '' }}
     - name: Set Up Gradle
-      uses: gradle/actions/setup-gradle@dbbdc275be76ac10734476cc723d82dfe7ec6eda # v3.4.2
+      uses: gradle/actions/setup-gradle@16bf8bc8fe830fa669c3c9f914d3eb147c629707 # v4.0.1
       with:
         cache-read-only: false
         develocity-access-key: ${{ inputs.develocity-access-key }}

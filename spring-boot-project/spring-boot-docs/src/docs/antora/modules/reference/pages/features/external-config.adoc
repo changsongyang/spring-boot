@@ -11,7 +11,7 @@ Later property sources can override the values defined in earlier ones.
 Sources are considered in the following order:
 
 . Default properties (specified by setting `SpringApplication.setDefaultProperties`).
-. {url-spring-framework-javadoc}/org/springframework/context/annotation/PropertySource.html[`@PropertySource`] annotations on your `@Configuration` classes.
+. javadoc:{url-spring-framework-javadoc}/org.springframework.context.annotation.PropertySource[format=annotation] annotations on your `@Configuration` classes.
   Please note that such property sources are not added to the `Environment` until the application context is being refreshed.
   This is too late to configure certain properties such as `+logging.*+` and `+spring.main.*+` which are read before refresh begins.
 . Config data (such as `application.properties` files).
@@ -24,9 +24,9 @@ Sources are considered in the following order:
 . Properties from `SPRING_APPLICATION_JSON` (inline JSON embedded in an environment variable or system property).
 . Command line arguments.
 . `properties` attribute on your tests.
-  Available on xref:api:java/org/springframework/boot/test/context/SpringBootTest.html[`@SpringBootTest`] and the xref:testing/spring-boot-applications.adoc#testing.spring-boot-applications.autoconfigured-tests[test annotations for testing a particular slice of your application].
-. {url-spring-framework-javadoc}/org/springframework/test/context/DynamicPropertySource.html[`@DynamicPropertySource`] annotations in your tests.
-. {url-spring-framework-javadoc}/org/springframework/test/context/TestPropertySource.html[`@TestPropertySource`] annotations on your tests.
+  Available on javadoc:org.springframework.boot.test.context.SpringBootTest[format=annotation] and the xref:testing/spring-boot-applications.adoc#testing.spring-boot-applications.autoconfigured-tests[test annotations for testing a particular slice of your application].
+. javadoc:{url-spring-framework-javadoc}/org.springframework.test.context.DynamicPropertySource[format=annotation] annotations in your tests.
+. javadoc:{url-spring-framework-javadoc}/org.springframework.test.context.TestPropertySource[format=annotation] annotations on your tests.
 . xref:using/devtools.adoc#using.devtools.globalsettings[Devtools global settings properties] in the `$HOME/.config/spring-boot` directory when devtools is active.
 
 Config data files are considered in the following order:
@@ -713,6 +713,8 @@ The preceding POJO defines the following properties:
 * `my.service.security.password`.
 * `my.service.security.roles`, with a collection of `String` that defaults to `USER`.
 
+TIP: To use a reserved keyword in the name of a property, such as `my.service.import`, use the `@Name` annotation on the property's field.
+
 NOTE: The properties that map to `@ConfigurationProperties` classes available in Spring Boot, which are configured through properties files, YAML files, environment variables, and other mechanisms, are public API but the accessors (getters/setters) of the class itself are not meant to be used directly.
 
 [NOTE]
@@ -769,6 +771,8 @@ This will happen automatically if you use Spring Boot's Gradle plugin or if you 
 NOTE: The use of `java.util.Optional` with `@ConfigurationProperties` is not recommended as it is primarily intended for use as a return type.
 As such, it is not well-suited to configuration property injection.
 For consistency with properties of other types, if you do declare an `Optional` property and it has no value, `null` rather than an empty `Optional` will be bound.
+
+TIP: To use a reserved keyword in the name of a property, such as `my.service.import`, use the `@Name` annotation on the constructor parameter.
 
 
 
@@ -953,9 +957,9 @@ For example, the configuration property `spring.main.log-startup-info` would be 
 
 Environment variables can also be used when binding to object lists.
 To bind to a `List`, the element number should be surrounded with underscores in the variable name.
-
 For example, the configuration property `my.service[0].other` would use an environment variable named `MY_SERVICE_0_OTHER`.
 
+Support for binding from environment variables is applied to the `systemEnvironment` property source and to any additional property source whose name ends with `-systemEnvironment`.
 
 
 [[features.external-config.typesafe-configuration-properties.relaxed-binding.caching]]
